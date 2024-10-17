@@ -125,7 +125,7 @@ class clus(BaseSignature, DataSignature):
                 'sign' + self.cctype[-1]).get_molset("reference")
 
         if os.path.isfile(sign.data_path):
-            self.data = sign.data.astype(np.float32)
+            self.data = sign.data.astype( 'float32' )
             self.data_type = self.data.dtype
             self.keys = sign.keys
             mappings = sign.mappings
@@ -211,7 +211,7 @@ class clus(BaseSignature, DataSignature):
                     (self.data,
                         np.zeros((self.data.shape[0],
                                   self.num_subdim - self.data.shape[1]))))
-                self.data = self.data.astype(np.float32)
+                self.data = self.data.astype( 'float32' )
 
             self.__log.info("Calculating k...")
             # Do reference distributions for the gap statistic
@@ -368,7 +368,7 @@ class clus(BaseSignature, DataSignature):
         mappings = None
 
         if os.path.isfile(sign.data_path):
-            self.data = sign.data.astype(np.float32)
+            self.data = sign.data.astype('float32')
             self.data_type = self.data.dtype
             self.keys = sign.keys
             mappings = sign.mappings
@@ -463,7 +463,7 @@ class clus(BaseSignature, DataSignature):
                     (self.data,
                         np.zeros((self.data.shape[0],
                                   self.num_subdim - self.data.shape[1]))))
-                self.data = self.data.astype(np.float32)
+                self.data = self.data.astype('float32')
 
             index = faiss.read_index(os.path.join(
                 self.model_path, "kmeans.index"))
@@ -548,7 +548,7 @@ class clus(BaseSignature, DataSignature):
     def _inertia(self, V_pqcode, labels, centroids):
         ines = 0
         for i in range(V_pqcode.shape[0]):
-            ines += euclidean(V_pqcode[i], centroids[labels[i]][0])
+            ines += euclidean(V_pqcode[i], centroids[labels[i]][0] )
         return ines
 
     def _dispersion(self, centroids, sig_dist, metric):
@@ -620,4 +620,4 @@ class clus(BaseSignature, DataSignature):
             nlz = joblib.load(FILE)
             V = nlz.transform(V)
 
-        return V.astype(np.float32)
+        return V.astype('float32')

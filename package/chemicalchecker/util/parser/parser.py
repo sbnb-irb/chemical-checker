@@ -222,6 +222,13 @@ class Parser():
         converter = Converter()
 
         file_path = map_paths[molrepo_name]
+        if( os.path.isdir(file_path) ):
+            fxml = ''
+            for fs in os.listdir(file_path) :
+                if( fs.endswith('.xml') ):
+                    fxml = fs
+            file_path = os.path.join(file_path, fxml)
+        
         # parse XML
         prefix = "{http://www.drugbank.ca}"
         tree = ET.parse(file_path)
@@ -272,7 +279,7 @@ class Parser():
     @staticmethod
     def kegg(map_paths, molrepo_name, chunks=1000):
         try:
-            import pybel
+            from openbabel import pybel
         except ImportError:
             raise ImportError("requires pybel " +
                               "http://openbabel.org")
@@ -380,7 +387,7 @@ class Parser():
     @staticmethod
     def mosaic(map_paths, molrepo_name, chunks=1000):
         try:
-            import pybel
+            from openbabel import pybel
         except ImportError:
             raise ImportError("requires pybel " +
                               "http://openbabel.org")
@@ -584,7 +591,7 @@ class Parser():
     @staticmethod
     def smpdb(map_paths, molrepo_name, chunks=1000):
         try:
-            import pybel
+            from openbabel import pybel
         except ImportError:
             raise ImportError("requires pybel " +
                               "http://openbabel.org")
@@ -842,8 +849,9 @@ class Parser():
         from pubchempy import Compound
         converter = Converter()
         # no file to parse here, but querying the chembl database
-        query = "SELECT drug_id, smiles, pubchem " +\
-            "FROM drug_annots WHERE smiles IS NOT NULL or pubchem IS NOT NULL"
+        query = "SELECT drug_id, smiles, pubchem FROM drug_annots WHERE smiles IS NOT NULL or pubchem IS NOT NULL"
+        # new query from chembl
+        #query = "select cr.MOLREGNO as drug_id, cr.SRC_COMPOUND_ID as pubchem, cs.CANONICAL_SMILES as smiles from COMPOUND_RECORDS as cr, COMPOUND_STRUCTURES as cs where cr.MOLREGNO=cs.MOLREGNO and cr.SRC_ID=(select src_id from source where SRC_SHORT_NAME like '%PUBCHEM%')"
         cur = psql.qstring_cur(query, molrepo_name)
         chunk = list()
         for idx, row in enumerate(cur):

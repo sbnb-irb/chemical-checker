@@ -163,7 +163,7 @@ class Traintest(object):
         splits = np.cumsum(fractions)
         splits = splits[:-1]
         splits *= len(idxs)
-        splits = splits.round().astype(np.int)
+        splits = splits.round().astype(int)
         return np.split(idxs, splits)
 
     @staticmethod
@@ -180,7 +180,7 @@ class Traintest(object):
             split_fractions(list(float)): fraction of data in each split.
             x_dtype(type): numpy data type for X.
             y_dtype(type): numpy data type for Y (np.float32 for regression,
-                np.int32 for classification.
+                int32 for classification.
         """
         # Force number of dimension to 2 (reshape Y)
         if Y.ndim == 1:

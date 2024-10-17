@@ -277,7 +277,7 @@ def do_consensus(ik_matrices, consensus):
         # NS takes the 66 percentile of columns (like what was done for rows in )
         # i.e 'averages' over the different signatures of the ik corresponding to that matrix
         # in the end we have a VECTOR of perc normalized conn scores of 1 perturbagen x all perturbagens from Touchstone
-        return [np.int16(get_summary(X[:, j])) for j in range(X.shape[1])]
+        return [ int(get_summary(X[:, j])) for j in range(X.shape[1])]
 
     # Stack all these vectors so that X is all perturbagens x all perturbagens and dump it as consensus_fit/predict.h5
     X = np.array([consensus_signature(ik) for ik in inchikeys])
@@ -686,7 +686,7 @@ def main(args):
 
     if TEST: print("orderwords", orderwords)
 
-    raws = np.zeros((len(keys), len(orderwords)), dtype=np.int8)  # Matrix n_inchikeys x n_Xcut_col_indices
+    raws = np.zeros((len(keys), len(orderwords)), dtype=int)  # Matrix n_inchikeys x n_Xcut_col_indices
     wordspos = {k: v for v, k in enumerate(orderwords)}           # dict Xcut_index : i  (i being the index of the sorted Xcutindex)
 
     for i, k in enumerate(keys):                                  # Going through inchikeys again

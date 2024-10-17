@@ -39,10 +39,11 @@ def skip_on_exception(function):
     def wrapper(*args, **kwargs):
         try:
             return function(*args, **kwargs)
-        except Exception:
+        except Exception as e:
             # log the exception
             err = "There was an exception in  "
-            err += function.__name__
+            err += function.__name__ + ": "
+            err += str(e)
             wrapper._log.error(err)
             return None
     return wrapper
@@ -860,7 +861,7 @@ class Plot():
         # Peform the kernel density estimate
         xx, yy = np.mgrid[xmin:xmax:100j, ymin:ymax:100j]
         positions = np.vstack([xx.ravel(), yy.ravel()])
-        Proj = np.vstack({tuple(row) for row in Proj})
+        Proj = np.vstack( [ tuple(row) for row in Proj ] )
         values = np.vstack([Proj[:, 0], Proj[:, 1]])
         kernel = gaussian_kde(values, bw_method=bw)
         f = np.reshape(kernel(positions).T, xx.shape)
@@ -975,7 +976,7 @@ class Plot():
         fig = plt.figure(figsize=(10, 3), dpi=100)
         ax = fig.add_subplot(111)
         sns.pointplot(x='variable', y='value', data=df,
-                      ax=ax, ci='sd', join=False, markers='.',
+                      ax=ax, errorbar='sd', linestyle='none', markers='.',
                       color=self._coord_color(coord))
         ax.set_ylim(-2, 2)
         ax.set_xlim(-2, 130)
@@ -1159,7 +1160,10 @@ class Plot():
             mask = np.random.choice(range(len(x)), 1000, replace=False)
             x = x[mask]
             y = y[mask]
-        sns.jointplot(x, y, kind="kde", color=self._coord_color(coord),
+        dfplot = pd.DataFrame()
+        dfplot['x'] = x
+        dfplot['y'] = y
+        sns.jointplot(data=dfplot,  x='x', y='y', kind="kde", color=self._coord_color(coord),
                       height=7, xlim=(0, 1), ylim=(0, 1))
         filename = os.path.join(
             self.plot_path, "DISTANCES_kde_%s.png" % predictor_name)
@@ -1188,7 +1192,7 @@ class Plot():
             tmpdf = pd.read_pickle(tmpdf_file)
             for k, v in params.items():
                 tmpdf[k] = pd.Series([v] * len(tmpdf))
-            df = df.append(tmpdf, ignore_index=True)
+            df = pd.concat([ df, tmpdf ], ignore_index=True)
         return df
 
     def sign2_grid_search_plot(self, grid_root):
@@ -1212,7 +1216,7 @@ class Plot():
             tmpdf = pd.read_pickle(tmpdf_file)
             for k, v in params.items():
                 tmpdf[k] = pd.Series([v] * len(tmpdf))
-            df = df.append(tmpdf, ignore_index=True)
+            df = pd.concat([ df, tmpdf ], ignore_index=True)
 
         df['layer_size'] = df['layer_size'].astype(int)
         df['adanet_iterations'] = df['adanet_iterations'].astype(int)
@@ -1265,7 +1269,7 @@ class Plot():
             self.__log.debug("%s lines in: %s", len(tmpdf), dir_name)
             if ds_name:
                 tmpdf = tmpdf.replace("-self", "not-%s" % ds_name)
-            df = df.append(tmpdf, ignore_index=True)
+            df = pd.concat([ df, tmpdf], ignore_index=True)
 
         if filter_from:
             df = df[df['from'].isin(filter_from)]
@@ -1328,7 +1332,7 @@ class Plot():
             if 'from' not in tmpdf:
                 from_ds = dir_name.split("_")[1]
                 tmpdf['from'] = pd.Series([from_ds] * len(tmpdf))
-            df = df.append(tmpdf, ignore_index=True)
+            df = pd.concat([ df, tmpdf], ignore_index=True)
 
         froms = sorted(list(df['from'].unique()))
         order = froms

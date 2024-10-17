@@ -12,7 +12,6 @@ class PythonCallable(BaseTask):
     def __init__(self, name='python', **params):
 
         BaseTask.__init__(self, name, **params)
-
         self.python_callable = params.get('python_callable', None)
         self.op_args = params.get('op_args', [])
         self.op_kwargs = params.get('op_kwargs', {})

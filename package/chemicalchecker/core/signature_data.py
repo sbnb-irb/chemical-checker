@@ -66,18 +66,21 @@ class DataSignature(object):
 
     def _check_dataset(self, key):
         """Test if dataset is available"""
-        with h5py.File(self.data_path, 'r') as hf:
-            if key not in hf.keys():
-                raise Exception("No '%s' dataset in this signature!" % key)
+        hf = h5py.File(self.data_path, 'r')
+        if key not in hf.keys():
+            raise Exception("No '%s' dataset in this signature!" % key)
+        hf.close()
 
     def clear(self):
-        with h5py.File(self.data_path, 'w') as hf:
-            pass
+        hf = h5py.File(self.data_path, 'w')
+        hf.close()
 
     def _get_shape(self, key, axis=None):
         """Get shape of dataset"""
-        with h5py.File(self.data_path, 'r') as hf:
-            data = hf[key].shape
+        hf = h5py.File(self.data_path, 'r')
+        data = hf[key].shape
+        hf.close()
+        
         if axis != None:
             if len(data) == axis:
                 return data[0]
@@ -87,14 +90,18 @@ class DataSignature(object):
 
     def _get_dtype(self, key):
         """Get shape of dataset"""
-        with h5py.File(self.data_path, 'r') as hf:
-            data = hf[key][0].flat[0].dtype
+        hf = h5py.File(self.data_path, 'r')
+        data = hf[key][0].flat[0].dtype
+        hf.close()
+        
         return data
 
     def _get_all(self, key):
         """Get complete dataset"""
-        with h5py.File(self.data_path, 'r') as hf:
-            data = hf[key][:]
+        hf = h5py.File(self.data_path, 'r')
+        data = hf[key][:]
+        hf.close()
+        
         if hasattr(data.flat[0], 'decode'):
             return data.astype(str)
         return data
@@ -220,13 +227,20 @@ class DataSignature(object):
     @cached_property
     def features(self):
         """Get the list of features in the signature."""
+        
+        replacement = np.array([i for i in range(0, self.shape[1])])
         self._check_data()
         try:
             self._check_dataset('features')
-            return self._get_all('features')
+            features = self.features
+            mat_col_number = self.shape[1]
+            if( len(features) > mat_col_number ):
+                return replacement
+            else:
+                return features
         except Exception:
             self.__log.warning("Features are not available")
-            return np.array([i for i in range(0, self.shape[1])])
+            return replacement
 
     @cached_property
     def mappings(self):
@@ -408,6 +422,32 @@ class DataSignature(object):
             hf[key] = hf[key_tmp]
             del hf[key_tmp]
 
+    def set_data_h5_dataset(self, key, index_range, values, axis):
+        """Set data according to ndexes of cols or rows.
+
+        key (str): The H5 dataset to set the new values.
+        index_range (np.array): An integer one dimensional index array. 
+        values (np.array): the new values of the partition predeined in the index_range passed.
+        axis (int): Wether the mask refers to rows (0) or columns (1).
+        """
+        self._check_dataset(key)
+        key_tmp = "%s_tmp" % key
+        self.close_hdf5()
+        with h5py.File(self.data_path, 'a') as hf:
+            if key_tmp in hf.keys():
+                self.__log.debug('Deleting pre-existing `%s`' % key_tmp)
+                del hf[key_tmp]
+            # if we have a list directly apply the mask
+            hf.create_dataset(key_tmp, hf[key].shape, dtype=hf[key].dtype)
+            if axis == 1:
+                hf[key_tmp][index_range] = values
+            else:
+                hf[key_tmp][:, index_range] = values
+                
+            del hf[key]
+            hf[key] = hf[key_tmp]
+            del hf[key_tmp]
+
     @staticmethod
     def hstack_signatures(sign_list, destination, chunk_size=1000,
                           aggregate_keys=None):
@@ -519,20 +559,28 @@ class DataSignature(object):
                 molecule signatures as NaNs.
             dataset_name(str): return any dataset in the h5 which is organized
                 by sorted keys.
+            output_missing(bool): whether to include the list of missing keys from query as a third output argument
         """
         self.__log.debug("Fetching %s rows from dataset %s" %
                          (len(keys), dataset_name))
         valid_keys = list(self.unique_keys & set(keys))
-        idxs = np.argwhere(
-            np.isin(list(self.keys), list(valid_keys), assume_unique=True))
+        idxs = np.argwhere( np.isin(list(self.keys), list(valid_keys), assume_unique=True) )
         inks, signs = list(), list()
-
+        
+        #oidxs = sorted(idxs.flatten())
+        #inks = self.keys[oidxs]
+        
         with h5py.File(self.data_path, 'r') as hf:
             dset = hf[dataset_name]
             dset_shape = dset.shape
             for idx in sorted(idxs.flatten()):
                 inks.append(self.keys[idx])
                 signs.append(dset[idx])
+
+            """
+            signs = hf[dataset_name][oidxs]
+            dset_shape = dset.shape
+            """
         missed_inks = set(keys) - set(inks)
         # if missing signatures are requested add NaNs
         if include_nan:
@@ -862,7 +910,7 @@ class DataSignature(object):
                 hf.create_dataset('keys', data=np.array(
                     src_keys, DataSignature.string_dtype()),
                     dtype=DataSignature.string_dtype())
-                hf.create_dataset('V', data=src_vectors, dtype=np.float32)
+                hf.create_dataset('V', data=src_vectors, dtype='float32')
                 hf.create_dataset("shape", data=src_vectors.shape)
             return
         # prepare key-vector arrays
@@ -886,7 +934,7 @@ class DataSignature(object):
             hf.create_dataset('keys', data=np.array(
                 dst_keys[sorted_idx], DataSignature.string_dtype()),
                 dtype=DataSignature.string_dtype())
-            hf.create_dataset('V', data=matrix[sorted_idx], dtype=np.float32)
+            hf.create_dataset('V', data=matrix[sorted_idx], dtype='float32')
             hf.create_dataset("shape", data=matrix.shape)
 
     def generator_fn(self, weak_shuffle=False, batch_size=None):

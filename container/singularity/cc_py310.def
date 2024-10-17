@@ -4,14 +4,15 @@ From: ubuntu:20.04
 %environment
     # PATHS
     export PATH=/opt/miniconda3/bin:$PATH
-    export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/opt/miniconda3/lib/
     . /opt/miniconda3/etc/profile.d/conda.sh
     conda activate cc_env
 
 %files
     #add node2vec pre-compiled binaries
     container/singularity/binaries/node2vec /opt
-    container/snap_makefile.config /opt/Makefile.config
+    container/snap /opt
+    container/gensim /opt
+    #container/snap_makefile.config /opt/Makefile.config
 
 %post
     # bind paths
@@ -69,29 +70,32 @@ From: ubuntu:20.04
     mamba update -q -n base mamba
 
     # create venv
-    mamba create --name=cc_env python=3.10 -y -q
+    mamba create --name=cc_env python=3.10 -y
     conda activate cc_env
 
     # conda-specific packages (~1 min)
-    mamba install -q -y -c conda-forge rdkit                                            # Open-Source Cheminformatics Software
-    mamba install -q -y -c openbabel openbabel                                          # chemical toolbox
-    mamba install -q -y mkl-service                                                     # change the number of CPU’s MKL is using
-    #mamba install -q -y -c conda-forge hdbscan                                          # clustering
-    pip install hdbscan
-    mamba install -q -y -c efelix fpsim2                                                # fast compound similarity searches (used in TargetMate)
-    mamba install -q -y -c conda-forge jupyterlab                                       # Jupyter-lab and notebooks
-    mamba install -q -y -c conda-forge ipywidgets                                       # Jupyter-lab widgets
-    mamba install -q -y -c anaconda ipython">7.19"                                      # interactive python
-    mamba install -q -y -c anaconda cython                                              # C extensions
-    mamba install -q -y -c conda-forge chembl_structure_pipeline                        # standardizing molecules the ChEMBL way
-    mamba install -q -y -c pytorch pytorch torchvision torchaudio cudatoolkit=11.3      # pytorch and cuda
-    mamba install -q -y -c conda-forge faiss-gpu                                        # efficient similarity search and clustering
-
+    mamba install -y -c conda-forge rdkit                                            # Open-Source Cheminformatics Software
+    mamba install -y -c openbabel openbabel                                          # chemical toolbox
+    mamba install -y mkl-service                                                     # change the number of CPU’s MKL is using
+    mamba install -y -c conda-forge hdbscan                                          # clustering
+    mamba install -y -c efelix fpsim2                                                # fast compound similarity searches (used in TargetMate)
+    mamba install -y -c conda-forge jupyterlab                                       # Jupyter-lab and notebooks
+    mamba install -y -c conda-forge ipywidgets                                       # Jupyter-lab widgets
+    mamba install -y -c anaconda ipython">7.19"                                      # interactive python
+    mamba install -y -c anaconda cython                                              # C extensions
+    mamba install -y -c conda-forge chembl_structure_pipeline                        # standardizing molecules the ChEMBL way
+    mamba install -y -c pytorch pytorch torchvision torchaudio cudatoolkit=11.3      # pytorch and cuda
+    # mamba install -y -c conda-forge faiss-gpu                                        # efficient similarity search and clustering
+    
+    pip install faiss-cpu
+    pip install faiss-gpu
+    
     # the package which break more easily is faiss so we test it after installing packages that might uninstall and change numpy
     alias test_faiss='python -c "import faiss, numpy; faiss.Kmeans(10, 20).train(numpy.random.rand(1000, 10).astype(numpy.float32))"'
     if ! test_faiss; then printf -- "\033[31m ERROR: faiss is failing! \033[0m\n"; else printf -- '\033[32m SUCCESS: faiss is working correctly. \033[0m\n'; fi
 
     # utility packages (~2 min)
+    pip install requests
     pip install six                               # py2/py3 compatibility
     pip install pytest                            # unit-testing
     pip install mock                              # mocking for unit-testing
@@ -124,21 +128,29 @@ From: ubuntu:20.04
     # ML packages
     pip install scikit-learn                      # entry level ML in python
     pip install numpy                             # numerical library - required previoous to gensim
-    pip install scipy                             # scientific python - required previoous to gensim
+    pip install scipy==1.11.4                             # scientific python - required previoous to gensim
 #    pip install gensim --no-binary :all:          # topic modelling word2vec (avoid importing binary that are compiled probably on different numpy versions)
+    
+    # Copying libc to the system to find cython GLIBCXX_3.4.29
+    cp /opt/miniconda3/envs/cc_env/lib/libstdc++.so.6 /lib/x86_64-linux-gnu/libstdc++.so.6
+    
+    # Installing gensim library from source with the freezed version that contains the correction for new numpy lib
+    cd /opt/gensim
+    pip install .
+    cd /opt/miniconda3
 
-    pip install git+https://github.com/piskvorky/gensim.git@develop
-
-    if ! test_faiss; then printf -- "\033[31m ERROR: faiss is failing! \033[0m\n"; else printf -- '\033[32m SUCCESS: faiss is working correctly. \033[0m\n'; fi
-
-    pip install tensorflow                        # neural network library
-
-    if ! test_faiss; then printf -- "\033[31m ERROR: faiss is failing! \033[0m\n"; else printf -- '\033[32m SUCCESS: faiss is working correctly. \033[0m\n'; fi
+    #pip install git+https://github.com/piskvorky/gensim.git@develop
+    
+    #git config --global http.postBuffer 1048576000
+    #git clone https://github.com/piskvorky/gensim.git
+    #cd gensim
+    #git checkout develop
+    #pip install .
+    #cd ..
 
     pip install tensorflow-hub                    # repository of trained machine learning models
-    pip install adanet                            # automl for NN
     pip install keras                             # NN API
-
+    
     # numerical packages
     pip install pandas                            # handles table-like datastracture
     pip install openpyxl                          # open xlsx
@@ -147,17 +159,24 @@ From: ubuntu:20.04
     pip install protobuf                          # Google serialization library
     pip install statsmodels                       # many different statistical models and tests
 
+     if ! test_faiss; then printf -- "\033[31m ERROR: faiss is failing! \033[0m\n"; else printf -- '\033[32m SUCCESS: faiss is working correctly. \033[0m\n'; fi
+
+    pip install tensorflow==2.8.0                        # neural network library
+
+    if ! test_faiss; then printf -- "\033[31m ERROR: faiss is failing! \033[0m\n"; else printf -- '\033[32m SUCCESS: faiss is working correctly. \033[0m\n'; fi
+    
+    pip install adanet                            # automl for NN
+
     # graph packages
     pip install networkx                          # graph data stracture and algos
 #    pip install snap-stanford                     # Python interface for SNAP
     
-    cd /opt
-    git clone https://github.com/snap-stanford/snap-python.git
-    git clone https://github.com/snap-stanford/snap.git
-    cp /opt/Makefile.config snap-python/Makefile.config
-    cd snap-python
-    make
-    cd ..
+    #git clone https://github.com/snap-stanford/snap-python.git
+    #git clone https://github.com/snap-stanford/snap.git
+    #cp /opt/Makefile.config snap-python/Makefile.config
+    #cd snap-python
+    #make
+    #cd ..
     
     # visualization packages
     pip install matplotlib                        # chart library :)
@@ -176,12 +195,11 @@ From: ubuntu:20.04
     pip install xgboost                           # Gradient Boosting framework
     pip install hyperopt                          # Hyperparameters optimization
     pip install shap                              # SHapley Additive exPlanations for ML models
-
+    
     # integration of D1
     pip install git+https://github.com/Maayanlab/geode.git   # Python implementation of the R package GeoDE
     
     # Clone the chemical checker package (used as fallback)
     cd /opt
     git clone http://gitlabsbnb.irbbarcelona.org/packages/chemical_checker.git
-
 

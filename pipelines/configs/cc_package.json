@@ -1,11 +1,11 @@
 {
     "PATH": {
-        "CC_ROOT": "'/aloy/web_checker/package_cc/2021_07/'",
-        "CC_DATA": "'/aloy/scratch/sbnb-adm/CC/download/'",
-        "CC_TMP": "'/aloy/scratch/sbnb-adm/CC/tmp_jobs/'",
-        "CC_REPO": "'/aloy/home/sbnb-adm/CC/CODE/chemical_checker'",
-        "SINGULARITY_IMAGE": "'/aloy/home/sbnb-adm/CC/IMAGE/cc.simg'",
-        "validation_path": "'/aloy/web_checker/package_cc/validation_sets/'"
+        "CC_ROOT": "'/aloy/web_checker/package_2024_update/'",
+        "CC_DATA": "'/aloy/web_checker/2024_02_test/'",
+        "CC_TMP": "'/aloy/scratch/ymartins/CC/tmp_jobs/'",
+        "CC_REPO": "'/aloy/home/ymartins/Documents/cc_update/chemical_checker/'",
+        "SINGULARITY_IMAGE": "'/aloy/home/ymartins/Documents/cc_update/cc_image/cc.simg'",
+        "validation_path": "'/aloy/web_checker/2024_02_test/validation_sets/'"
     },
     "DB": {
     	"dialect": "'postgresql'",
@@ -13,18 +13,20 @@
     	"host": "'10.5.4.240'",
     	"user": "'sbnb-adm'",
     	"password": "'db_adm'",
-    	"database": "'cc_package'",
+    	"database": "'cc_package_2024_02'",
         "calcdata_dbname": "'cc_calcdata'",
-        "uniprot_db_version" : "'2020_05'"
+        "uniprot_db_version" : "'2022_01'"
     },
     "HPC": {
-    	"system" : "'sge'",
-    	"host": "'pac-one-head'",
+    	"system" : "'slurm'",
+    	"host": "'irblogin01'",
     	"queue": "'all.q'",
-    	"username": "'sbnb-adm'"
+    	"username": "'ymartins'",
+        "password": "'Kalinka1*_KfG&317'"
     },
     "TOOLS": {
-        "node2vec_exec" : "'/aloy/home/mbertoni/code/snap/examples/node2vec/node2vec'"
+        "node2vec_exec" : "'/aloy/home/ymartins/Documents/cc_update/chemical_checker/container/singularity/binaries/node2vec'",
+        "snap": "'/aloy/home/ymartins/Documents/cc_update/chemical_checker/container'"
     }
 
 }

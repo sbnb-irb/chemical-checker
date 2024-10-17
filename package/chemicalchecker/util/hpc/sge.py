@@ -62,18 +62,27 @@ fi
         self.password = kwargs.get("password", '')
         self.error_finder = kwargs.get("error_finder", self.__find_error)
         dry_run = kwargs.get("dry_run", False)
-        self.specificNode = kwargs.get("specificNode", None)
-        if self.specificNode:
-            defaultOptions = """\
+        self.specificNode = kwargs.get("specificNode", None )
+        
+        # Specific addition for the cc update, remove later
+        if( self.specificNode == None or self.specificNode == '' ):
+            self.specificNode = [ 'pac-one103', 'pac-one104', 'pac-one107', 'pac-one109', 'pac-one301', 'pac-one401']
+            #self.specificNode = [ 'pac-one301', 'pac-one401']
+            #self.specificNode = ['pac-one109', 'pac-one301', 'pac-one401']
+            
+        if self.specificNode != None:
+            nodes = ','.join( [ f'all.q@{n}' for n in  self.specificNode] )
+            self.queue = nodes
+            self.defaultOptions = """\
 #$ -S /bin/bash
 #$ -r yes
 #$ -j yes
-#$ -q all.q@{}
-""".format(self.specificNode)
+#$ -q {}
+""".format(nodes)
 
         self.statusFile = None
         self.status_id = None
-        self.conn_params = {}
+        self.conn_params = { }
 
         if self.username != '' and self.password != '':
             self.conn_params["username"] = self.username
@@ -93,8 +102,12 @@ fi
         """Yields n successive chunks from l."""
         if isinstance(l, list) or isinstance(l, np.ndarray):
             # a list of 60 000 entries split in 6000 chunks
-            for i in np.array_split(l, n):
-                yield i   # yields one of the 6000 chunks of 10 elements
+            ind = list( range( len(l) ) )
+            for i in np.array_split(ind, n):
+                tmp = []
+                for idx in i:
+                    tmp.append( l[idx] )
+                yield tmp   # yields one of the 6000 chunks of 10 elements
         elif isinstance(l, dict):
             keys = list(l.keys())
             keys.sort()
@@ -103,9 +116,13 @@ fi
 
         # NS: to correct a bug on D1 sign0 calculation
         elif isinstance(l, type(dict().keys())):
-            keys = list(l).sort()
-            for i in np.array_split(keys, n):
-                yield {k: l[k] for k in i}
+            l = list(l)
+            ind = list( range( len(l) ) )
+            for i in np.array_split(ind, n):
+                tmp = []
+                for idx in i:
+                    tmp.append( l[idx] )
+                yield tmp 
         else:
             raise Exception("Element datatype not supported: %s" % type(l))
 
@@ -118,14 +135,16 @@ fi
         self.jobdir = kwargs.get("jobdir", '')
         self.job_name = kwargs.get("job_name", 'hpc_cc_job')
         elements = kwargs.get("elements", [])
+        custom_elements = kwargs.get("custom_chunks", [])
+        
         compress_out = kwargs.get("compress", True)
         check_error = kwargs.get("check_error", True)
         maxtime = kwargs.get("time", None)
         cpusafe = kwargs.get("cpusafe", True)
-        cpu = kwargs.get("cpu", 1)
+        cpu = kwargs.get("cpu", 4)
         # maximum memory before being killed is expressed per-core
         # correspond to h_vmem
-        membycore = int(kwargs.get("mem_by_core", 2))
+        membycore = int(kwargs.get("mem_by_core", 40))
         # total memory that must be available when starting the job
         # does not influence the job being killed or not
         # correspond to mem_free
@@ -139,8 +158,8 @@ fi
         if self.queue is not None:
             submit_string += " -q " + self.queue + " "
 
-        if wait:
-            submit_string += " -sync y "
+        #if wait:
+        #    submit_string += " -sync y "
 
         self.__log.debug("Job name is: " + self.job_name)
 
@@ -150,7 +169,7 @@ fi
         jobParams = ["#$ -N " + self.job_name]
         jobParams.append("#$ -wd " + self.jobdir)
 
-        if (len(elements) == 0 and num_jobs > 1):
+        if ( len(custom_elements) == 0 and len(elements) == 0 and num_jobs > 1):
             raise Exception(
                 "Number of specified jobs does not match"
                 " to the number of elements")
@@ -172,6 +191,7 @@ fi
         else:
             jobParams.append("#$ -l h_vmem=" + str(membycore) + "G")
 
+        maxtime = None
         if maxtime is not None:
             jobParams.append(
                 "#$ -l h_rt=" + str(datetime.timedelta(minutes=maxtime)))
@@ -180,7 +200,7 @@ fi
             jobParams.append("#$ -tc " + str(max_jobs))
             
         # NS, where elements turns into <FILE>
-        if len(elements) > 0:
+        if ( (len(elements) > 0) or (len(custom_elements) > 0) ):
             self.__log.debug("Num elements submitted " + str(len(elements)))
             self.__log.debug("Num Job submitted " + str(num_jobs))
 
@@ -190,9 +210,14 @@ fi
             # If some jobs fail, recover their index from the pickle, '535' :
             # {'REP.A028_YAPC_24H:K01': {'file':
             # '/aloy/web_checker/package_cc/2020_01/full/D/D1/D1.001/sign0/raw/models/signatures/REP.A028_YAPC_24H:K01.h5'},.....}
-            for cid, chunk in enumerate(self._chunks(elements, num_jobs), 1):
-                input_dict[str(cid)] = chunk
-
+            
+            if( len(elements) > 0 ):
+                for cid, chunk in enumerate(self._chunks(elements, num_jobs), 1):
+                    input_dict[str(cid)] = chunk
+            
+            if( len(custom_elements) > 0 ):
+                input_dict = custom_elements
+            
             # i.e a random name input file:
             # d8e918f5-4817-4df5-9ab9-5efbf23f63c7
             input_path = os.path.join(self.jobdir, str(uuid.uuid4()))
@@ -237,11 +262,18 @@ fi
         self.__log.debug("HPC submission: " + submit_string)
 
         time.sleep(2)
-
+        
         try:
             ssh = paramiko.SSHClient()
             ssh.load_system_host_keys()
             ssh.connect(self.host, **self.conn_params)
+            
+            self.statusFile = os.path.join(
+            self.jobdir, self.job_name + sge.jobStatusSuffix)
+            with open(self.statusFile, "w") as f:
+                f.write(STARTED)
+            self.status_id = STARTED
+            print('wait', wait)
             stdin, stdout, stderr = ssh.exec_command(
                 submit_string, get_pty=True)
 
@@ -254,19 +286,19 @@ fi
 
             self.job_id = self.job_id.rstrip()
             self.__log.debug('Job id: %s' % self.job_id)
+            ssh.close()
         except paramiko.SSHException as sshException:
             raise Exception(
                 "Unable to establish SSH connection: %s" % sshException)
 
-        finally:
-            ssh.close()
-            self.statusFile = os.path.join(
-                self.jobdir, self.job_name + sge.jobStatusSuffix)
-            with open(self.statusFile, "w") as f:
-                f.write(STARTED)
-            self.status_id = STARTED
-
         if wait:
+            t=0
+            while (self.status_id == STARTED):
+                self.status()
+                time.sleep(60)
+                t+=60
+                print(t)
+                
             errors = None
             with open(self.statusFile, "w") as f:
                 f.write(DONE)
@@ -344,12 +376,15 @@ fi
                 ssh = paramiko.SSHClient()
                 ssh.load_system_host_keys()
                 ssh.connect(self.host, **self.conn_params)
-                stdin, stdout, stderr = ssh.exec_command(
-                    'qstat -j ' + self.job_id)
+                stdin, stdout, stderr = ssh.exec_command( 'qstat -j ' + self.job_id)
                 message = stdout.readlines()
                 self.__log.debug(message)
+                
+                flag = (len(message) == 0)
+                if( not flag and len(message)>0 ):
+                    flag = (message[0].find("do not exist") != -1 )
                 # if message[0].find("do not exist") != -1:
-                if len(message) == 0:
+                if flag:
                     self.status_id = DONE
                     with open(self.statusFile, "w") as f:
                         f.write(self.status_id)

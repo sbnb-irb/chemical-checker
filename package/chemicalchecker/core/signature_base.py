@@ -304,9 +304,20 @@ class BaseSignature(object):
             args(tuple): the arguments for of the fit method
             kwargs(dict): arguments for the HPC method.
         """
+        
+        exec_universe_in_parallel = kwargs.get('exec_universe_in_parallel', False)
+        
         # read config file,# NS: get the cc_config var otherwise set it to
         # os.environ['CC_CONFIG']
-        cc_config = kwargs.pop("cc_config", os.environ['CC_CONFIG'])
+        original_kwargs = kwargs
+        hpc_args = {}
+        if( 'hpc_args' in kwargs):
+            hpc_args = kwargs.get('hpc_args')
+        pcores = hpc_args.get("cpu", 4)
+        if( self.cctype == 'sign3' and exec_universe_in_parallel ):
+            pcores = 1
+            
+        cc_config = kwargs.get("cc_config", os.environ['CC_CONFIG'])
         self.__log.debug(
             "CC_Config for function {} is: {}".format(func_name, cc_config))
         cfg = Config(cc_config)
@@ -322,19 +333,18 @@ class BaseSignature(object):
         if not os.path.isdir(job_path):
             os.mkdir(job_path)
         # check cpus
-        cpu = kwargs.get("cpu", 1)
-        # create script file
         script_lines = [
-            "import os, sys",
             "from chemicalchecker import ChemicalChecker",
             "ChemicalChecker.set_verbosity('DEBUG')",
-            "os.environ['OMP_NUM_THREADS'] = str(%s)" % cpu,
+            "import os, sys",
+            "os.environ['OMP_NUM_THREADS'] = str(%s)" % hpc_args.get("cpu", 4),
             "import pickle",
             "sign, args, kwargs = pickle.load(open(sys.argv[1], 'rb'))",
             "sign.%s(*args, **kwargs)" % func_name,
             "print('JOB DONE')"
         ]
-        if kwargs.pop("delete_job_path", False):
+       
+        if kwargs.get("delete_job_path", False):
             script_lines.append("print('DELETING JOB PATH: %s')" % job_path)
             script_lines.append("os.system('rm -rf %s')" % job_path)
 
@@ -347,17 +357,19 @@ class BaseSignature(object):
                 fh.write(line + '\n')
 
         # hpc parameters
-        hpc_cfg = kwargs.pop("hpc_cfg", cfg)
+        hpc_cfg = kwargs.get("hpc_cfg", cfg)
         params = kwargs
+        params["cpu"] = pcores
+        params["mem_by_core"] = hpc_args.get("mem_by_core", 5)
+        params["wait"] = hpc_args.get("wait", True)
         params["num_jobs"] = 1
         params["jobdir"] = job_path
         params["job_name"] = job_name
-        params["wait"] = kwargs.pop("wait", False)
 
         # pickle self (the data) and fit args, and kwargs
         pickle_file = '%s_%s_hpc.pkl' % (self.__class__.__name__, func_name)
         pickle_path = os.path.join(job_path, pickle_file)
-        pickle.dump((self, args, kwargs), open(pickle_path, 'wb'))
+        pickle.dump((self, args, original_kwargs), open(pickle_path, 'wb'))
 
         # job command
         singularity_image = cfg.PATH.SINGULARITY_IMAGE
@@ -429,7 +441,11 @@ class BaseSignature(object):
         from .sign2 import sign2
         from .sign3 import sign3
         from .sign4 import sign4
+        
         from .neig import neig
+        from .clus import clus
+        from .proj import proj
+        
         folds = self.signature_path.split('/')
         folds[-5] = molset
         new_path = '/'.join(folds)

@@ -295,7 +295,15 @@ def main(args):
         ACTS = parse_chembl()
 
         main._log.info("Parsing DrugBank.")
-        drugbank_xml = os.path.join(map_files["drugbank"], "full database.xml")
+    
+        file_path = map_files["drugbank"]
+        if( os.path.isdir(file_path) ):
+            fxml = ''
+            for fs in os.listdir(file_path) :
+                if( fs.endswith('.xml') ):
+                    fxml = fs
+            drugbank_xml = os.path.join(file_path, fxml)
+            
         ACTS = parse_drugbank(ACTS, drugbank_xml)
 
         # generate protein class dictionary and graph

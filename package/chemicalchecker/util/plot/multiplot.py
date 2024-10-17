@@ -152,7 +152,7 @@ class MultiPlot():
                 continue
             tmpdf = pd.read_pickle(stat_file)
             tmpdf['coordinate'] = ds
-            df = df.append(tmpdf, ignore_index=True)
+            df = pd.concat([ df, tmpdf], ignore_index=True)
         df = df.infer_objects()
 
         outfile_csv = os.path.join(self.plot_path, 'sign2_adanet_stats.csv')
@@ -164,7 +164,7 @@ class MultiPlot():
             cdf = pd.read_pickle(compare)
             cdf = cdf[cdf.algo == 'AdaNet'].copy()
             cdf['algo'] = cdf.algo.apply(lambda x: x + '_STACK')
-            df = df.append(cdf, ignore_index=True)
+            df = pd.concat([ df, cdf], ignore_index=True)
 
         if metric:
             all_metrics = [metric]
@@ -350,7 +350,7 @@ class MultiPlot():
             df = pd.DataFrame(matrix).melt()
             all_df = df.copy()
             all_df['variable'] = 130
-            df = df.append(all_df, ignore_index=True)
+            df = pd.concat([ df, all_df], ignore_index=True)
             if not sort:
                 order = [130, -1] + range(matrix.shape[1])
             else:
@@ -469,7 +469,7 @@ class MultiPlot():
             else:
                 tmpdf["subnetwork_generator"] = tmpdf.algo.map(
                     {"AdaNet": "StackDNNGenerator", "LinearRegression": "LinearRegression"})
-            df = df.append(tmpdf, ignore_index=True)
+            df = pd.concat([ df, tmpdf], ignore_index=True)
 
         # df['layer_size'] = df['layer_size'].astype(int)
         # df['adanet_iterations'] = df['adanet_iterations'].astype(int)
@@ -641,7 +641,7 @@ class MultiPlot():
             else:
                 tmpdf["subnetwork_generator"] = tmpdf.algo.map(
                     {"AdaNet": "ExtendDNNGenerator", "LinearRegression": "LinearRegression"})
-            df = df.append(tmpdf, ignore_index=True)
+            df = pd.concat([ df, tmpdf], ignore_index=True)
 
         # df['layer_size'] = df['layer_size'].astype(int)
         # df['adanet_iterations'] = df['adanet_iterations'].astype(int)
@@ -733,7 +733,9 @@ class MultiPlot():
             file_names.append(filename)
 
         cols = list(pd.read_pickle(file_names[0]).columns)
-        dfs = list()
+        df = pd.DataFrame(columns=list(set(cols)) +
+                          ['coordinate_from', 'coordinate_to', 'train_size'])
+        #dfs = list()
         for tmpdf_file in file_names:
             tmpdf = pd.read_pickle(tmpdf_file)
             coordinate = tmpdf_file.split('/')[-3]
@@ -747,10 +749,9 @@ class MultiPlot():
             with h5py.File(traintest_file, 'r') as fh:
                 train_size = fh['x_train'].shape[0]
             tmpdf['train_size'] = pd.Series([train_size] * len(tmpdf))
-            dfs.append(tmpdf)
-        df = pd.DataFrame(columns=list(set(cols)) +
-                          ['coordinate_from', 'coordinate_to', 'train_size'])
-        df = df.append(dfs, ignore_index=True)
+            df = pd.concat([ df, tmpdf], ignore_index=True)
+            #dfs.append(tmpdf)
+        #df = pd.concat([ df, dfs], ignore_index=True)
         df = df.infer_objects()
 
         adanet_test = df[(df.algo == 'AdaNet') & (df.dataset == 'test')]
@@ -1040,7 +1041,7 @@ class MultiPlot():
             sel = sdf[(sdf['split'] == split)].groupby(
                 'from', as_index=False)[metric].mean()
             sel['to'] = ds[:2]
-            df = df.append(sel, ignore_index=True)
+            df = pd.concat([ df, sel], ignore_index=True)
 
         df['from'] = df['from'].map({ds: ds[:2] for ds in self.cc.datasets})
         df = df.dropna()
@@ -1614,7 +1615,7 @@ class MultiPlot():
 
         def mask_keep(idxs, x1_data):
             # we will fill an array of NaN with values we want to keep
-            x1_data_transf = np.zeros_like(x1_data, dtype=np.float32) * np.nan
+            x1_data_transf = np.zeros_like(x1_data, dtype=float) * np.nan
             for idx in idxs:
                 # copy column from original data
                 col_slice = slice(idx * 128, (idx + 1) * 128)
@@ -1747,17 +1748,17 @@ class MultiPlot():
                 print('test_confidence', test_confidence.shape)
                 # make train sign1 neig
                 train_signref_neig = faiss.IndexFlatL2(train_signref.shape[1])
-                train_signref_neig.add(train_signref.astype(np.float32))
+                train_signref_neig.add( np.array(train_signref, dtype='float32') )
                 # make train sign4 neig
                 train_sign_neig = faiss.IndexFlatL2(train_sign.shape[1])
-                train_sign_neig.add(train_sign.astype(np.float32))
+                train_sign_neig.add( np.array(train_sign, dtype='float32') )
                 # find test sign1 neighbors
                 signref_neig_dist, signref_neig_idx = train_signref_neig.search(
-                    test_signref.astype(np.float32), 100)
+                    np.array( test_signref, dtype='float32'), 100)
                 signref_neig_dist = np.sqrt(signref_neig_dist)
                 # find test sign4 neighbors
                 sign_neig_dist, sign_neig_idx = train_sign_neig.search(
-                    test_sign.astype(np.float32), 100)
+                    np.array( test_sign, dtype='float32'), 100)
                 sign_neig_dist = np.sqrt(sign_neig_dist)
                 # check various thresholds
                 # get sign ref background distances thresholds
@@ -2076,8 +2077,8 @@ class MultiPlot():
                 list(s3_data), k=k, distances=False, keys=False)
 
             jacc = n2.jaccard_similarity(n2_s2['indices'], n2_s3['indices'])
-            df = df.append(pd.DataFrame(
-                {'dataset': ds, 'confidence': 'high', 'jaccard': jacc}), ignore_index=True)
+            df = pd.concat([ df, pd.DataFrame(
+                {'dataset': ds, 'confidence': 'high', 'jaccard': jacc}) ], ignore_index=True)
             print('***** HIGH', len(jacc), np.mean(jacc),
                   stats.spearmanr(jacc, s3_data_conf))
 
@@ -2101,8 +2102,8 @@ class MultiPlot():
                 list(s3_data), k=k, distances=False, keys=False)
 
             jacc = n2.jaccard_similarity(n2_s2['indices'], n2_s3['indices'])
-            df = df.append(pd.DataFrame(
-                {'dataset': ds, 'confidence': 'all', 'jaccard': jacc}), ignore_index=True)
+            df = pd.concat([ df, pd.DataFrame(
+                {'dataset': ds, 'confidence': 'all', 'jaccard': jacc}) ], ignore_index=True)
             print('***** ALL', len(jacc), np.mean(jacc),
                   stats.spearmanr(jacc, s3_data_conf))
 
@@ -2358,18 +2359,18 @@ class MultiPlot():
             s3_conf_new_w = np.average(
                 [s3_intensity, (1 - s3_stddev), (1 - s3_experr)], axis=0, weights=[1, 1, pc_experr])
 
-            df = pd.DataFrame({'train': True, 'confidence': 0[
+            df = pd.DataFrame({'train': True, 'confidence': s3_conf[
                               train_idxs], 'kind': 'old'})
-            df = df.append(pd.DataFrame({'train': False, 'confidence': s3_conf[
-                           test_idxs], 'kind': 'old'}), ignore_index=True)
-            df = df.append(pd.DataFrame({'train': True, 'confidence': s3_conf_new[
-                           train_idxs], 'kind': 'new'}), ignore_index=True)
-            df = df.append(pd.DataFrame({'train': False, 'confidence': s3_conf_new[
-                           test_idxs], 'kind': 'new'}), ignore_index=True)
-            df = df.append(pd.DataFrame({'train': True, 'confidence': s3_conf_new_w[
-                           train_idxs], 'kind': 'test'}), ignore_index=True)
-            df = df.append(pd.DataFrame({'train': False, 'confidence': s3_conf_new_w[
-                           test_idxs], 'kind': 'test'}), ignore_index=True)
+            df = pd.concat([ df, pd.DataFrame({'train': False, 'confidence': s3_conf[
+                           test_idxs], 'kind': 'old'}) ], ignore_index=True)
+            df = pd.concat([ df, pd.DataFrame({'train': True, 'confidence': s3_conf_new[
+                           train_idxs], 'kind': 'new'}) ], ignore_index=True)
+            df = pd.concat([ df, pd.DataFrame({'train': False, 'confidence': s3_conf_new[
+                           test_idxs], 'kind': 'new'}) ], ignore_index=True)
+            df = pd.concat([ df, pd.DataFrame({'train': True, 'confidence': s3_conf_new_w[
+                           train_idxs], 'kind': 'test'}) ], ignore_index=True)
+            df = pd.concat([ df, pd.DataFrame({'train': False, 'confidence': s3_conf_new_w[
+                           test_idxs], 'kind': 'test'}) ], ignore_index=True)
             # get idx of nearest neighbors of s2
             sns.boxplot(data=df, y='confidence', x='kind', hue='train',
                         order=['old', 'new', 'test'],
@@ -2593,7 +2594,7 @@ class MultiPlot():
         df = pd.DataFrame(
             columns=['dataset', 'scaled', 'comp_wise', 'metric', 'value'])
         all_dss = list(self.datasets)
-        all_dfs = list()
+        #all_dfs = list()
         for ds in all_dss:
             sign = self.cc.get_signature(cctype, 'full', ds)
             pred_file = os.path.join(
@@ -2633,8 +2634,9 @@ class MultiPlot():
                 _df = pd.DataFrame(
                     dict(dataset=ds, scaled=scaled, comp_wise=comp_wise,
                          metric=metric, value=values))
-                all_dfs.append(_df)
-        df = pd.concat(all_dfs)
+                df = pd.concat([ df, _df ], ignore_index=True)
+                #all_dfs.append(_df)
+        #df = pd.concat(all_dfs)
 
         # sns.set_style("ticks")
         # sns.set_style({'font.family': 'sans-serif', 'font.serif': ['Arial']})
@@ -2990,7 +2992,7 @@ class MultiPlot():
 
         def mask_keep(idxs, x1_data):
             # we will fill an array of NaN with values we want to keep
-            x1_data_transf = np.zeros_like(x1_data, dtype=np.float32) * np.nan
+            x1_data_transf = np.zeros_like(x1_data, dtype=float) * np.nan
             for idx in idxs:
                 # copy column from original data
                 col_slice = slice(idx * 128, (idx + 1) * 128)

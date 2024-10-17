@@ -139,7 +139,15 @@ def main(args):
         ATCS = parse_kegg(kegg_br)
 
         main._log.info("Parsing DrugBank.")
-        drugbank_xml = os.path.join(map_files["drugbank"], "full database.xml")
+    
+        file_path = map_files["drugbank"]
+        if( os.path.isdir(file_path) ):
+            fxml = ''
+            for fs in os.listdir(file_path) :
+                if( fs.endswith('.xml') ):
+                    fxml = fs
+            drugbank_xml = os.path.join(file_path, fxml)
+        #drugbank_xml = os.path.join(map_files["drugbank"], "full database.xml")
         ATCS = parse_drugbank(ATCS, drugbank_xml)
 
         # break ATCs

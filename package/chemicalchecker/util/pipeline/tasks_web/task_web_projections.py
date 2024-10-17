@@ -83,7 +83,7 @@ class Projections(BaseTask):
                 inchikeys = hf["keys"][:]
                 V = hf["V"][:]
             for w in range(len(inchikeys)):
-                ik = inchikeys[w]
+                ik = inchikeys[w].decode('utf-8')
                 if ik not in D:
                     D[ik] = NULL[:]
                 D[ik][wh[0]] = w
@@ -92,10 +92,11 @@ class Projections(BaseTask):
 
         self.__log.info("Filling projections table")
         d_keys = list(D.keys())
+        
         for c in self.__chunker(d_keys, 10000):
             s = []
             for x in c:
-                s += ["(" + ",".join(["'%s'" % x] + ["%s" % y for y in D[x]]) + ")"]
+                s += ["(" + ",".join(["'%s'" % x ] + ["%s" % y for y in D[x]]) + ")"]
             s = ",".join(s)
             psql.query(INSERT % s, db_name)
 

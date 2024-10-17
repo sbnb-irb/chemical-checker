@@ -67,7 +67,7 @@ class BaseTransform(object):
                 continue
             triplets += [(maps_dict[t[0]], maps_dict[t[1]], maps_dict[t[2]])]
         self.__log.debug("...Saving triplets to %s" % fn)
-        triplets = np.array(triplets, dtype=np.int)
+        triplets = np.array(triplets, dtype=int)
         with h5py.File(fn, "r+") as hf:
             del hf["triplets"]
             hf["triplets"] = triplets
@@ -182,7 +182,7 @@ class BaseTransform(object):
         self.__log.debug("...subsampling done")
         features = np.array(["f%d" % i for i in range(self.sign_ref.shape[1])])
         if self.categorical:
-            V = V.astype(np.int)
+            V = V.astype(int)
         return V, keys, features
 
     @staticmethod
@@ -194,12 +194,12 @@ class BaseTransform(object):
         self.__log.debug("Checking continuous or categorical")
         V = self.sign_ref[:n]
         self.sign_ref.close_hdf5()
-        is_cat = np.all(V == V.astype(np.int))
+        is_cat = np.all(V == V.astype(int))
         if not is_cat:
             return False
         V = self.sign[:n]
         self.sign.close_hdf5()
-        is_cat = np.all(V == V.astype(np.int))
+        is_cat = np.all(V == V.astype(int))
         if is_cat:
             return True
         else:

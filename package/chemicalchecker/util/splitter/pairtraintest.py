@@ -143,7 +143,7 @@ class PairTraintest(object):
         splits = np.cumsum(fractions)
         splits = splits[:-1]
         splits *= len(idxs)
-        splits = splits.round().astype(np.int)
+        splits = splits.round().astype(int)
         return np.split(idxs, splits)
 
     @staticmethod
@@ -162,7 +162,7 @@ class PairTraintest(object):
             split_fractions(list(float)): fraction of data in each split.
             x_dtype(type): numpy data type for X.
             y_dtype(type): numpy data type for Y (np.float32 for regression,
-                np.int32 for classification.
+                int32 for classification.
         """
         PairTraintest.__log.debug(
             "{:<20} shape: {:>10}".format("input X1", str(X1.shape)))

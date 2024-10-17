@@ -194,7 +194,7 @@ class Lsi(BaseTransform):
             # Read the provided sign1 by chunks of n signautres
             for chunk in sign1.chunker():
                 # take a chunk of n signatures, together with their keys
-                vs = sign1[chunk].astype(np.int)
+                vs = sign1[chunk].astype(int)
                 ks = sign1.keys[chunk]
                 for i in range(0, len(ks)):
                     # save dense represantation (feat with 1 values only)
@@ -235,9 +235,9 @@ class Lsi(BaseTransform):
             hf.create_dataset("keys", data=np.array(
                 keys, DataSignature.string_dtype()))
             hf.create_dataset("V", (len(keys), self.cut_i + 1),
-                              dtype=np.float32)
+                              dtype=float)
             hf.create_dataset("V_tmp", (len(keys), self.cut_i + 1),
-                              dtype=np.float32)
+                              dtype=float)
 
             only_zeros = 0
             for idx, line in enumerate(c_lsi):

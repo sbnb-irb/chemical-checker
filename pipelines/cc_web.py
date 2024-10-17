@@ -126,20 +126,17 @@ def main(args):
         "met": [
             'Human metabolites',
             'Endogenous metabolites from Human Metabolome Database (HMDb)',
-            'http://zinc15.docking.org/catalogs/hmdbendo/'
-            'items.txt?count=all&output_fields=smiles%20zinc_id',
+            'file:///aloy/web_checker/repo_data/zinc_libs/met/met_1.smi',
             'zinc'],
         "tcm": [
             'Tradicional Chinese medicines',
             'Compounds extracted from traditional Chinese medicinal plants',
-            'http://zinc15.docking.org/catalogs/tcmnp/'
-            'items.txt?count=all&output_fields=smiles%20zinc_id',
+            'file:///aloy/web_checker/repo_data/zinc_libs/tcm/tcm_1.smi',
             'zinc'],
         "lincs": [
             'LINCS compounds',
             'Collection of compounds of the LINCS initiative',
-            'http://zinc15.docking.org/catalogs/lincs/'
-            'items.txt?count=all&output_fields=smiles%20zinc_id',
+            'file:///aloy/web_checker/repo_data/zinc_libs/lincs/lincs_1.smi',
             'zinc'],
         "pwck": [
             'Prestwick chemical library',
@@ -156,8 +153,7 @@ def main(args):
         "ncidiv": [
             'NCI diversity collection',
             'NCI diversity collection',
-            'http://zinc15.docking.org/catalogs/ncidiv/'
-            'items.txt?count=all&output_fields=smiles%20zinc_id',
+            'http://zinc15.docking.org/catalogs/ncidiv/items.txt?count=all&output_fields=smiles%20zinc_id',
             'zinc'],
         "tool": [
             'Tool compounds',
@@ -228,7 +224,7 @@ def main(args):
     plots_task = Plots(name='plots',
                        DB=args.new_web_db, CC_ROOT=args.cc_root,
                        MOLECULES_PATH=args.molecule_path)
-    pp.add_task(plots_task)
+    #pp.add_task(plots_task)
 
     # TASK: Generate molecular info
     minfo_task = MolecularInfo(name='molinfo',
@@ -253,8 +249,10 @@ def main(args):
             raise Exception(
                 "%s not found! Did cc_web.py finish correctly?" %
                 plots_web)
+        
         # link plots dir
-        src_dir = os.path.join(plots_web, 'plots_home')
+        #src_dir = os.path.join(plots_web, 'plots_home')
+        src_dir = plots_web
         if not os.path.isdir(src_dir):
             raise Exception(
                 "%s not found! Did cc_web.py finish correctly?" %
@@ -263,6 +261,7 @@ def main(args):
         if os.path.isdir(dst_dir):
             os.unlink(dst_dir)
         os.symlink(src_dir, dst_dir)
+        
         # link statistics dir
         src_dir = os.path.join(plots_web, 'plots_stats')
         if not os.path.isdir(src_dir):
@@ -273,6 +272,7 @@ def main(args):
         if os.path.isdir(dst_dir):
             os.unlink(dst_dir)
         os.symlink(src_dir, dst_dir)
+        
         # link molecule dir
         src_dir = args.molecule_path
         if not os.path.isdir(src_dir):
@@ -283,16 +283,19 @@ def main(args):
         if os.path.isdir(dst_dir):
            os.unlink(dst_dir)
         os.symlink(src_dir, dst_dir)
+        
         # copy bioactive_mol_set.json (aka cc universe)
         src_path = os.path.join(cachedir, 'bioactive_mol_set.json')
         dst_path = os.path.join(web_repo_path, 'app',
                                 'shared', 'data', 'bioactive_mol_set.json')
         shutil.copyfile(src_path, dst_path)
+        
         # copy inchies_names.json (aka molecule common names)
         src_path = os.path.join(tmpdir, 'inchies_names.json')
         dst_path = os.path.join(web_repo_path, 'app',
                                 'shared', 'data', 'inchies_names.json')
         shutil.copyfile(src_path, dst_path)
+        
         # generate all inchikeys per coordinate
         cc = ChemicalChecker(args.cc_root)
         ink_coord = {}
@@ -317,7 +320,8 @@ def main(args):
 
     export_cc_task = PythonCallable(name="export_cc_ftp",
                                  python_callable=export_cc_ftp,
-                                 op_args=[args.cc_root])
+                                 op_args=[args.cc_root],
+                                 op_kwargs={ 'ftp_path': '/aloy/web_checker/ftp_data' } )
     pp.add_task(export_cc_task)
 
     # TASK: Export signatures 3 to ftp directory 
@@ -328,13 +332,50 @@ def main(args):
         for ds in cc.datasets_exemplary():
             s3 = cc.get_signature('sign3', 'full', ds)
             dst = os.path.join(ftp_path, cc.name, '%s.h5' % ds[:2])
-            cc.export(dst, s3, h5_filter=['keys', 'V', 'confidence', 'known'],
-                      h5_names_map={'confidence': 'applicability'})
+            cc.export(dst, s3, h5_filter=['keys', 'V', 'confidence', 'known'], h5_names_map={'confidence': 'applicability'})
 
     export_task = PythonCallable(name="export_sign3_ftp",
                                  python_callable=export_sign3_ftp,
-                                 op_args=[args.cc_root])
+                                 op_args=[args.cc_root],
+                                 op_kwargs={ 'ftp_path': '/aloy/web_checker/ftp_data' } )
+    
     pp.add_task(export_task)
+    
+    def export_cc_sign012(cc_root, ftp_path='/aloy/web_checker/ftp_data'): 
+        a = ['A','B','C','D','E']
+        b = [1,2,3,4,5]
+        c = [0,1,2]
+        scr = f'{args.cc_root}/full/_sa_/_space_/_space_.001/_sign_/_sign_.h5'
+        dest = f'{ftp_path}/2024_02/signature_s_/_space___sign_.h5'
+        for i in a:
+            for j in b:
+                for k in c:
+                    source = ( scr.replace('_sa_', str(i)).replace('_space_', f'{i}{j}').replace('_sign_', f'sign{k}') )
+                    destination = ( dest.replace('_s_', str(k)) ).replace('_space_', f'{i}{j}').replace('_sign_', f'sign{k}')
+                    if( not os.path.exists( destination ) ):
+                        os.system( 'ln -sF '+source+' '+destination )
+
+    export_cc_s012_task = PythonCallable(name="export_cc_sign012",
+                                 python_callable=export_cc_sign012,
+                                 op_args=[args.cc_root])
+    pp.add_task(export_cc_s012_task)
+    
+    def linkNew_cc_current(cc_root, new_version): 
+        cc = ChemicalChecker(args.cc_root)
+        cc.add_sign_metadata()
+        cc.add_model_metadata()
+        cc.export_symlinks()
+    
+        os.system( 'unlink /aloy/web_checker/signaturizers/current' )
+        os.system( f'ln -s /aloy/web_checker/signaturizers/{ new_version } /aloy/web_checker/signaturizers/current' )
+        
+        os.system( 'unlink /aloy/web_checker/current' )
+        os.system( f'ln -s /aloy/web_checker/package_cc/{ new_version } /aloy/web_checker/current' )
+
+    link_cc_current_task = PythonCallable(name="linkNew_cc_current",
+                                 python_callable=linkNew_cc_current,
+                                 op_args= [ args.cc_root, args.new_web_db.replace('cc_web_', '') ] )
+    pp.add_task( linkNew_cc_current_task )
 
     # TASK: Create json of similar molecules for explore page
     similars_task = Similars(name='similars',
@@ -352,3 +393,4 @@ if __name__ == '__main__':
     # parse arguments
     args = pipeline_parser().parse_args(sys.argv[1:])
     main(args)
+

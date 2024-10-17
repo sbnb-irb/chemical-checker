@@ -171,7 +171,9 @@ class Sanitizer(object):
             if np.any(~keep):
                 data.filter_h5_dataset('V', keep, axis=1)
                 data.filter_h5_dataset('features', keep, axis=1)
-
+        
+        print( 'Features frequency', data.shape )
+        
         # check keys frequencies
         if self.check_keys:
             self.__log.debug('Checking keys:')
@@ -215,11 +217,11 @@ class Sanitizer(object):
             if k == 'all':
                 continue
             self.__log.debug("{:<5}: {:>12}".format(str(k), str(v)))
-
+    
         # impute NaN & infs
         if self.impute_missing and nan_counts['all'] != 0:
             self.__log.info('Imputing missing values.')
-            hf = h5py.File(data.data_path, 'a')
+            #hf = h5py.File(data.data_path, 'a')
             for chunk, cols in data.chunk_iter('V', cs, axis=1, chunk=True):
                 # get values for replacements
                 ref_cols = cols
@@ -243,8 +245,10 @@ class Sanitizer(object):
                 cols[idxs] = np.take(posinf_vals, idxs[1])
                 idxs = np.where(np.isneginf(cols))
                 cols[idxs] = np.take(neginf_vals, idxs[1])
-                hf['V'][:, chunk] = cols
-            hf.close()
+                data.set_data_h5_dataset( 'V', chunk, cols, 0 )
+                #data['V'][:, chunk] = cols
+            #hf.close()
+
 
         # count NaN & infs
         if nan_counts['all'] != 0:
@@ -262,7 +266,9 @@ class Sanitizer(object):
                 if k == 'all':
                     continue
                 self.__log.debug("{:<5}: {:>12}".format(str(k), str(v)))
-
+        
+        print( 'Flter nans and inf', data.shape )
+        
         # trim if there are too many features
         if self.trim and data.shape[1] > self.max_features:
             self.__log.debug("More than %d features, trimming the "
@@ -271,7 +277,7 @@ class Sanitizer(object):
                 entropy_vals = np.zeros((data.shape[1],))
                 for chunk, cols in data.chunk_iter('V', cs, axis=1, chunk=True):
                     entropy_vals[chunk] = entropy(cols, axis=0)
-                features_rank = np.argsort(entropy_vals)
+                features_rank = np.argsort(entropy_vals)[::-1]
             else:
                 std_vals = np.zeros((data.shape[1],))
                 for chunk, cols in data.chunk_iter('V', cs, axis=1, chunk=True):
@@ -284,7 +290,9 @@ class Sanitizer(object):
             data.filter_h5_dataset('features', keep, axis=1)
             self.__log.info("Removed %i features (max_features): %s"
                             % (len(filtered), str(filtered)))
-
+        
+        print( 'Filter too many features', data.shape )
+        
         self.__log.info("Sanitized data shape: %s" % str(self.data.shape))
 
         # return if input was raw data

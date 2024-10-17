@@ -167,7 +167,7 @@ class ReportCard:
                 num_predicted = len(pred) if pred.isna().all().Active == False else 0
                 l_.append('{:s}\n({:d})'.format(l, num_predicted))
                 pred['Type'] = '{:s}\n({:d})'.format(l, num_predicted)
-                df = df.append(pred)
+                df = pd.concat([ df, pred ])
                 if np.sum(pred['Inactive'] < pred['Active']) > 500:
                     large += ['{:s}\n({:d})'.format(l, num_predicted)]
 

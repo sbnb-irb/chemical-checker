@@ -258,7 +258,7 @@ class char(BaseSignature, DataSignature):
                 dist[i] = np.delete(dist[i], (dist[i]==0).nonzero()[0])
                 
                 # Store nearest neighbors indexes as h5 subgroups
-                f.create_dataset(f'neighbors/{i}', data=nearest, dtype=np.int32)
+                f.create_dataset(f'neighbors/{i}', data=nearest, dtype=int)
 
         neigh_lengths = np.array(list(map(len, nn_idxs)))
         n_isolated = len(neigh_lengths[neigh_lengths==0])
@@ -338,7 +338,7 @@ class char(BaseSignature, DataSignature):
         self.__log.info("Saving SAFE results.")
         with h5py.File(self.data_path, 'a') as f:
           
-            raw_scores = np.zeros(shape=(n, m), dtype=np.float32)
+            raw_scores = np.zeros(shape=(n, m), dtype='float32')
             for col_idx in range(n):
                 with open(os.path.join(res_folder, str(col_idx)), 'rb') as fh:
                     data_row = pickle.load(fh)
@@ -614,7 +614,7 @@ class char(BaseSignature, DataSignature):
         sns.kdeplot(neigh_lengths, color=cc_colors(self.dataset[:2]), alpha=0.25, cut=0, fill=True, ax=ax)
         
         with h5py.File(self.data_path, 'a') as f:
-            f.require_dataset('neighborhood_sizes', shape=neigh_lengths.shape, dtype=np.int,
+            f.require_dataset('neighborhood_sizes', shape=neigh_lengths.shape, dtype=int,
                               data=neigh_lengths)
 
         ax.set_xlabel('Number of neighbors')
@@ -1245,7 +1245,7 @@ class char(BaseSignature, DataSignature):
 
             neigh_idxs = np.delete(neigh_idxs[0], (dist[0]<1e-5).nonzero()[0])
 
-            scorevec = np.zeros_like(self.features, dtype=np.float64)
+            scorevec = np.zeros_like(self.features, dtype='float64')
             
             v0 = V0[neigh_idxs]
             

@@ -2,14 +2,21 @@ from __future__ import division
 import sys
 import os
 import h5py
+import shutil
 import numpy as np
 import bisect
 import pickle
 import uuid
 import collections
 
+from rdkit import Chem
+from rdkit.Chem import AllChem
+
+from chemicalchecker.util.mol2svg import Mol2svg
 from chemicalchecker.database import Dataset, Molecule
 from chemicalchecker.core import ChemicalChecker
+
+converter = Mol2svg()
 
 # Variables
 
@@ -17,6 +24,31 @@ cutoff = 0.001
 
 # Functions
 
+def draw(inchikey, inchi, mol_path):
+    # get isomeric smiles
+    mol = Chem.rdinchi.InchiToMol(inchi)[0]
+    smiles = Chem.MolToSmiles(mol, isomericSmiles=True)
+    mol = Chem.MolFromSmiles(smiles)
+    AllChem.Compute2DCoords(mol)
+    
+    mol_file = os.path.join(mol_path, "2d.mol")
+    with open(mol_file, "w") as f:
+        try:
+            f.write(Chem.MolToMolBlock(mol))
+        except Exception as ex:
+            print(str(ex))
+            f.write(Chem.MolToMolBlock(mol, kekulize=False))
+    converter.mol2svg(mol_path)
+    os.remove(mol_file)
+    
+    mol_svg = os.path.join(mol_path, '2d.svg')
+    if not os.path.isfile(mol_svg):
+        raise Exception("Could not draw %s in path %s" % (key, mol_svg))
+    else:
+        svg = open( mol_svg, 'r' ).read().replace('\n', ' ')
+        os.remove(mol_svg)
+        shutil.rmtree( mol_path, ignore_errors=True)
+        return smiles, svg
 
 def weights(coords, coord_idxs):
     idxs = [coord_idxs[c] for c in coords]
@@ -67,6 +99,7 @@ filename = sys.argv[2]
 consensus = sys.argv[3]
 output_path = sys.argv[4]
 CC_ROOT = sys.argv[5]
+temp_dir = sys.argv[6]
 
 # input is a chunk of universe inchikey
 iks = pickle.load(open(filename, 'rb'))[task_id]
@@ -140,10 +173,16 @@ with open(outfile, "w") as f:
         print(i, ik)
         s = get_scores(i, cc, map_coords_obs[ik], vals_obs, vals_pred,
                        dataset_pairs, cut_idx, coord_idxs)
+        
         inchi = mappings_inchi[ik]
+        mol_path = os.path.join( temp_dir, ik )
+        if( not os.path.isdir( mol_path ) ):
+            os.mkdir( mol_path )
+        smiles, svg = draw( str(ik), str(inchi), mol_path)
+        
         start_pos = inchi.find('/') + 1
         end_pos = inchi.find('/', start_pos)
         formula = inchi[start_pos:end_pos]
         prop = props[i]
-        f.write("%s\t%s\t%.3g\t%.3g\t%.3g\t%.2f\t%.3g\t%.3g\n" %
-                (ik, formula, s[0], s[1], s[2], prop[mw_idx], prop[ro5_idx], prop[qed_idx]))
+        f.write("%s\t%s\t%.3g\t%.3g\t%.3g\t%.2f\t%.3g\t%.3g\t%s\t%s\n" %
+                ( ik, formula, s[0], s[1], s[2], prop[mw_idx], prop[ro5_idx], prop[qed_idx], smiles, svg ) )

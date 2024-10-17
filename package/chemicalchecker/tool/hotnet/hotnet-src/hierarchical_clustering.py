@@ -40,7 +40,7 @@ def tarjan_HD(A, reverse=True, verbose=False):
     if not reverse:
         weights = np.unique(A)
         m = len(weights)
-        B = np.asarray(A, dtype=np.float32)
+        B = np.asarray(A, dtype=float)
 
         T, root = tarjan_HD_recursive(V, B, T, i, root)
 
@@ -61,7 +61,7 @@ def tarjan_HD(A, reverse=True, verbose=False):
         weights = np.unique(A)
         m = len(weights)
         max_weight = weights[m-1]
-        B = np.asarray(2*max_weight-A, dtype=np.float32)
+        B = np.asarray(2*max_weight-A, dtype=float)
         np.fill_diagonal(B, 0)
 
         T, root = tarjan_HD_recursive(V, B, T, i, root)
@@ -137,9 +137,9 @@ def tarjan_HD_recursive(V, A, T, i, root):
 def condense_graph(A, components):
     if imported_fortran_module:
         n = len(components)
-        nodes = np.array([i for component in components for i in component], dtype=np.int64)
-        sizes = np.array([len(component) for component in components], dtype=np.int64)
-        indices = np.array([np.sum(sizes[:i]) for i in range(n+1)], dtype=np.int64)
+        nodes = np.array([i for component in components for i in component], dtype=int )
+        sizes = np.array([len(component) for component in components], dtype=int)
+        indices = np.array([np.sum(sizes[:i]) for i in range(n+1)], dtype=int)
         return fortran_module.condense_adjacency_matrix(A, nodes+1, indices+1)
     else:
         n = len(components)
@@ -165,7 +165,7 @@ def index_vertices(vertices, indices):
 
 def slice_array(A, rows, columns):
     if imported_fortran_module:
-        return fortran_module.slice_array(A, np.array(columns, dtype=np.int)+1, np.array(rows, dtype=np.int)+1)
+        return fortran_module.slice_array(A, np.array(columns, dtype=int )+1, np.array(rows, dtype=int )+1)
     else:
         return A[np.ix_(rows,columns)]
 
@@ -184,15 +184,15 @@ def strongly_connected_components_from_adjacency_matrix(A):
     m, n = np.shape(A)
     nodes = range(n)
 
-    index = -np.ones(n, dtype=np.int64)
-    lowlink = -np.ones(n, dtype=np.int64)
-    found = np.zeros(n, dtype=np.bool)
-    queue = np.zeros(n, dtype=np.int64)
-    subqueue = np.zeros(n, dtype=np.int64)
-    component = np.zeros(n, dtype=np.int64)
+    index = -np.ones(n, dtype=int)
+    lowlink = -np.ones(n, dtype=int)
+    found = np.zeros(n, dtype=bool)
+    queue = np.zeros(n, dtype=int)
+    subqueue = np.zeros(n, dtype=int)
+    component = np.zeros(n, dtype=int)
 
-    neighbors = np.zeros((n, n), dtype=np.int64)
-    degree = np.zeros(n, dtype=np.int64)
+    neighbors = np.zeros((n, n), dtype=int)
+    degree = np.zeros(n, dtype=int)
     for v in nodes:
         neighbors_v = np.where(A[v]>0)[0]
         degree_v = np.size(neighbors_v)
