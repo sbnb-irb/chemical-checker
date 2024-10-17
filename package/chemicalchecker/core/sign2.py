@@ -221,7 +221,7 @@ class sign2(BaseSignature, DataSignature):
                 destination = destination.data_path
             with h5py.File(destination, "w") as results:
                 # initialize V and keys datasets
-                results.create_dataset('V', (tot_inks, 128), dtype=float)
+                results.create_dataset('V', (tot_inks, 128), dtype='float32')
                 results.create_dataset(
                     'keys', data=np.array(sign1.keys,
                                           DataSignature.string_dtype()))

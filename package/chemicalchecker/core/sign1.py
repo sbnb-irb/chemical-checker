@@ -311,9 +311,9 @@ class sign1(BaseSignature, DataSignature):
             dh5out.create_dataset("row_keys", data=dh5["keys"][:])
             dh5out["col_keys"] = h5py.SoftLink('/row_keys')
             dh5out.create_dataset(
-                "indices", (datasize[0], k), dtype=int)
+                "indices", (datasize[0], k), dtype='int32')
             dh5out.create_dataset(
-                "distances", (datasize[0], k), dtype=float)
+                "distances", (datasize[0], k), dtype='float32')
             dh5out.create_dataset("shape", data=(datasize[0], k))
             dh5out.create_dataset(
                 "metric", data=[metric.encode(encoding='UTF-8',
@@ -323,14 +323,14 @@ class sign1(BaseSignature, DataSignature):
             else:
                 index = faiss.IndexFlatIP(datasize[1])
             for chunk in s1.chunker():
-                data_temp = np.array(dh5[V_name][chunk], dtype=float)
+                data_temp = np.array(dh5[V_name][chunk], dtype='float32')
                 if metric == "cosine":
                     normst = LA.norm(data_temp, axis=1)
                     index.add( np.array( data_temp / normst[:, None], dtype='float32') )
                 else:
                     index.add( np.array(data_temp, dtype='float32') )
             for chunk in s1.chunker():
-                data_temp = np.array(dh5[V_name][chunk], dtype=float)
+                data_temp = np.array(dh5[V_name][chunk], dtype='float32')
                 if metric == "cosine":
                     normst = LA.norm(data_temp, axis=1)
                     Dt, It = index.search( np.array(data_temp / normst[:, None], dtype='float32'), k)

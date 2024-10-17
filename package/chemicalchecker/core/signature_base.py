@@ -334,6 +334,8 @@ class BaseSignature(object):
             os.mkdir(job_path)
         # check cpus
         script_lines = [
+            "from chemicalchecker import ChemicalChecker",
+            "ChemicalChecker.set_verbosity('DEBUG')",
             "import os, sys",
             "os.environ['OMP_NUM_THREADS'] = str(%s)" % hpc_args.get("cpu", 4),
             "import pickle",

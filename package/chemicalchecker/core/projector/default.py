@@ -106,7 +106,7 @@ class Default(BaseSignature, DataSignature):
         faiss.omp_set_num_threads(self.cpu)
 
         if os.path.isfile(signature.data_path):
-            self.data = np.float32(signature.data)
+            self.data = signature.data.astype('float32')
             self.data_type = signature.data_type
             self.keys = signature.keys
             mappings = signature.mappings
@@ -142,12 +142,12 @@ class Default(BaseSignature, DataSignature):
 
                 tsne = TSNE(n_jobs=self.cpu, perplexity=self.perplexity, angle=self.angle,
                             n_iter=1000, metric=self.metric)
-                Proj = tsne.fit_transform(kmeans.centroids.astype(np.float64))
+                Proj = tsne.fit_transform(kmeans.centroids.astype('float64'))
 
             if self.type == "mds":
 
                 mds = MDS(n_jobs=self.cpu)
-                Proj = mds.fit_transform(kmeans.centroids.astype(np.float64))
+                Proj = mds.fit_transform(kmeans.centroids.astype('np.float64'))
 
             X = Proj[:, 0]
             Y = Proj[:, 1]
@@ -208,12 +208,12 @@ class Default(BaseSignature, DataSignature):
             if self.type == "tsne":
                 tsne = TSNE(n_jobs=self.cpu, perplexity=self.perplexity, angle=self.angle,
                             n_iter=1000, metric=self.metric)
-                final_Proj = tsne.fit_transform(self.data.astype(np.float64))
+                final_Proj = tsne.fit_transform(self.data.astype('float64'))
 
             if self.type == "mds":
 
                 mds = MDS(n_jobs=self.cpu)
-                final_Proj = mds.fit_transform(self.data.astype(np.float64))
+                final_Proj = mds.fit_transform(self.data.astype('float64'))
 
             if self.metric == "euclidean":
                 index = faiss.IndexFlatL2(self.data.shape[1])
@@ -310,7 +310,7 @@ class Default(BaseSignature, DataSignature):
                 raise Exception(
                     "H5 file %s does not contain datasets 'keys' and 'V'"
                     % signature.data_path)
-            self.data = np.array(dh5["V"][:], dtype=np.float32)
+            self.data = np.array(dh5["V"][:], dtype='float32')
             self.data_type = dh5["V"].dtype
             self.keys = dh5["keys"][:]
             if "mappings" in dh5.keys():

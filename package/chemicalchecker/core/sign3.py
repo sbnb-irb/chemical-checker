@@ -2120,7 +2120,7 @@ class sign3(BaseSignature, DataSignature):
             self.update_status("Predicting universe Sign3")
             with h5py.File(self.data_path, "a") as results:
                 # initialize V and keys datasets
-                safe_create(results, 'V', (tot_inks, 128), dtype=float)
+                safe_create(results, 'V', (tot_inks, 128), dtype='float32')
                 safe_create(results, 'keys',
                             data=np.array(self.universe_inchikeys,
                                           DataSignature.string_dtype()))
@@ -2140,27 +2140,27 @@ class sign3(BaseSignature, DataSignature):
                 if model_confidence:
                     # this is to store robustness
                     safe_create(results, 'robustness',
-                                (tot_inks,), dtype=float)
+                                (tot_inks,), dtype='float32')
                     # this is to store applicability
                     safe_create(results, 'applicability',
-                                (tot_inks,), dtype=float)
+                                (tot_inks,), dtype='float32')
                     # this is to store priors
                     safe_create(results, 'prior',
-                                (tot_inks,), dtype=float)
+                                (tot_inks,), dtype='float32')
                     # this is to store priors based on signature
                     safe_create(results, 'prior_signature',
-                                (tot_inks,), dtype=float)
+                                (tot_inks,), dtype='float32')
                 if predict_novelty:
                     safe_create(results, 'novelty',
-                                (tot_inks, ), dtype=float)
+                                (tot_inks, ), dtype='float32')
                     safe_create(results, 'outlier',
-                                (tot_inks, ), dtype=float)
+                                (tot_inks, ), dtype='float32')
 
                 # predict signature 3 for universe molecules
                 with h5py.File(self.sign2_universe, "r") as features:
                     # reference prediction (based on no information)
                     nan_feat = np.full((1, features['x_test'].shape[1]),
-                                       np.nan, dtype=float)
+                                       np.nan, dtype='float32')
                     nan_pred = siamese.predict(nan_feat)
                     # read input in chunks
                     for idx in tqdm(range(0, tot_inks, chunk_size),
@@ -2303,7 +2303,7 @@ class sign3(BaseSignature, DataSignature):
                 # create destination h5 dataset
                 tot_inks = features[src_h5_ds].shape[0]
                 preds_shape = (tot_inks, 128)
-                preds.create_dataset(dst_h5_ds, preds_shape, dtype=float)
+                preds.create_dataset(dst_h5_ds, preds_shape, dtype='float32')
                 if 'keys' in features:
                     preds.create_dataset('keys', data=features['keys'])
                 # predict in chunks
@@ -2320,7 +2320,7 @@ def safe_create(h5file, *args, **kwargs):
 
 def mask_keep(idxs, x1_data):
     # we will fill an array of NaN with values we want to keep
-    x1_data_transf = np.zeros_like(x1_data, dtype=float) * np.nan
+    x1_data_transf = np.zeros_like(x1_data, dtype='float32') * np.nan
     for idx in idxs:
         # copy column from original data
         col_slice = slice(idx * 128, (idx + 1) * 128)
@@ -2407,7 +2407,7 @@ def subsampling_probs(sign2_coverage, dataset_idx, trim_threshold=0.1,
         # frequency based probabilities
         p_nrs = freq_nrs / coverage.shape[0]
         # add minimum probability (corner cases where to use 1 or 2 datasets)
-        min_p_nr = np.full(max_nr + 1, min(p_nrs), dtype=float)
+        min_p_nr = np.full(max_nr + 1, min(p_nrs), dtype='float32')
         for nr, p_nr in zip(nrs, p_nrs):
             min_p_nr[nr] = p_nr
         # but leave out too large nrs
