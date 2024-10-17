@@ -338,7 +338,7 @@ class char(BaseSignature, DataSignature):
         self.__log.info("Saving SAFE results.")
         with h5py.File(self.data_path, 'a') as f:
           
-            raw_scores = np.zeros(shape=(n, m), dtype=float)
+            raw_scores = np.zeros(shape=(n, m), dtype='float32')
             for col_idx in range(n):
                 with open(os.path.join(res_folder, str(col_idx)), 'rb') as fh:
                     data_row = pickle.load(fh)
@@ -1245,7 +1245,7 @@ class char(BaseSignature, DataSignature):
 
             neigh_idxs = np.delete(neigh_idxs[0], (dist[0]<1e-5).nonzero()[0])
 
-            scorevec = np.zeros_like(self.features, dtype=float)
+            scorevec = np.zeros_like(self.features, dtype='float64')
             
             v0 = V0[neigh_idxs]
             

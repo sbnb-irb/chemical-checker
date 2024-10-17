@@ -910,7 +910,7 @@ class DataSignature(object):
                 hf.create_dataset('keys', data=np.array(
                     src_keys, DataSignature.string_dtype()),
                     dtype=DataSignature.string_dtype())
-                hf.create_dataset('V', data=src_vectors, dtype=float)
+                hf.create_dataset('V', data=src_vectors, dtype='float32')
                 hf.create_dataset("shape", data=src_vectors.shape)
             return
         # prepare key-vector arrays
@@ -934,7 +934,7 @@ class DataSignature(object):
             hf.create_dataset('keys', data=np.array(
                 dst_keys[sorted_idx], DataSignature.string_dtype()),
                 dtype=DataSignature.string_dtype())
-            hf.create_dataset('V', data=matrix[sorted_idx], dtype=float)
+            hf.create_dataset('V', data=matrix[sorted_idx], dtype='float32')
             hf.create_dataset("shape", data=matrix.shape)
 
     def generator_fn(self, weak_shuffle=False, batch_size=None):
