@@ -67,7 +67,7 @@ export SINGULARITY_BINDPATH="/aloy/home,/aloy/data,/aloy/scratch,/aloy/web_check
 
 #SBATCH --time=10-00:00:00
 
-#SBATCH --qos=long
+##SBATCH --qos=long
 
 # paramiko is not loaded
 source /etc/profile.d/z00-lmod.sh
