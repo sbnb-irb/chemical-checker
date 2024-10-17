@@ -50,7 +50,7 @@ export LD_LIBRARY_PATH=/apps/manual/software/PostgreSQL/14.2/lib:$LD_LIBRARY_PAT
 # CUDA drivers
 export LD_LIBRARY_PATH=/apps/manual/software/CUDA/11.6.1/lib64:/apps/manual/software/CUDA/11.6.1/targets/x86_64-linux/lib:/apps/manual/software/CUDA/11.6.1/extras/CUPTI/lib64/:/apps/manual/software/CUDA/11.6.1/nvvm/lib64/:/apps/manual/software/CUDNN/8.3.2/lib:$LD_LIBRARY_PATH
 export SINGULARITYENV_LD_LIBRARY_PATH=$LD_LIBRARY_PATH
-export SINGULARITY_BINDPATH="/aloy/home,/aloy/data,/aloy/scratch,/aloy/web_checker,/aloy/web_repository"
+export SINGULARITY_BINDPATH="/aloy/home,/aloy/data,/aloy/scratch,/aloy/web_checker,/aloy/web_repository,/apps/manual/software/CUDA"
 
 %(command)s
 
@@ -61,15 +61,22 @@ export SINGULARITY_BINDPATH="/aloy/home,/aloy/data,/aloy/scratch,/aloy/web_check
 #
 #
 
-#SBATCH -p irb_gpu_3090
-#SBATCH --nodelist=irbgcn01
+#SBATCH -p spot_gpu
+#SBATCH --nodelist=irbgcn[02-06]
 #SBATCH --gres=gpu:1
 
 #SBATCH --time=10-00:00:00
 
 #SBATCH --qos=long
 
-export LD_LIBRARY_PATH=/apps/manual/software/CUDA/11.6.1/lib64:/apps/manual/software/CUDA/11.6.1/targets/x86_64-linux/lib:/apps/manual/software/CUDA/11.6.1/extras/CUPTI/lib64/:/apps/manual/software/CUDA/11.6.1/nvvm/lib64/:$LD_LIBRARY_PATH
+# paramiko is not loaded
+source /etc/profile.d/z00-lmod.sh
+
+# CUDA drivers
+module load CUDA/11.7.0
+
+export SINGULARITYENV_LD_LIBRARY_PATH=$LD_LIBRARY_PATH
+export SINGULARITY_BINDPATH="/aloy/home,/aloy/data,/aloy/scratch,/aloy/web_checker,/apps/easybuild/rocky-8.7/intel/icelake/software/CUDA"
 
 # Options for sbatch
 %(options)s
@@ -222,7 +229,7 @@ fi
             command = command.replace("<FILE>", input_path)
 
         # adding --nv to the command in case it is not present already
-        singArg = "--nv"
+        singArg = " --cleanenv --nv"
         if singArg not in command:
             self.__log.warning(
                     "The Singularity command submitted doesn't contain a necessary argument: Adding {}".format(singArg))

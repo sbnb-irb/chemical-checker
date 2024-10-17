@@ -332,8 +332,7 @@ def main(args):
         for ds in cc.datasets_exemplary():
             s3 = cc.get_signature('sign3', 'full', ds)
             dst = os.path.join(ftp_path, cc.name, '%s.h5' % ds[:2])
-            cc.export(dst, s3, h5_filter=['keys', 'V', 'confidence', 'known'],
-                      h5_names_map={'confidence': 'applicability'})
+            cc.export(dst, s3, h5_filter=['keys', 'V', 'confidence', 'known'], h5_names_map={'confidence': 'applicability'})
 
     export_task = PythonCallable(name="export_sign3_ftp",
                                  python_callable=export_sign3_ftp,
@@ -351,7 +350,10 @@ def main(args):
         for i in a:
             for j in b:
                 for k in c:
-                    os.system( 'ln -sF '+( scr.replace('_sa_', str(i)).replace('_space_', f'{i}{j}').replace('_sign_', f'sign{k}') )+' '+( dest.replace('_s_', str(k)) ).replace('_space_', f'{i}{j}').replace('_sign_', f'sign{k}') )
+                    source = ( scr.replace('_sa_', str(i)).replace('_space_', f'{i}{j}').replace('_sign_', f'sign{k}') )
+                    destination = ( dest.replace('_s_', str(k)) ).replace('_space_', f'{i}{j}').replace('_sign_', f'sign{k}')
+                    if( not os.path.exists( destination ) ):
+                        os.system( 'ln -sF '+source+' '+destination )
 
     export_cc_s012_task = PythonCallable(name="export_cc_sign012",
                                  python_callable=export_cc_sign012,

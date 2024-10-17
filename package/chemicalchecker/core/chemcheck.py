@@ -373,6 +373,7 @@ class ChemicalChecker():
                 for c in tqdm(combinations):
                     if( type_sign == 'sign3' ):
                         wget.download( f"https://chemicalchecker.com/api/db/getFile/root/{ c }.h5", out=out_directory )
+                        os.system( f"mv {out_directory}/{ c }.h5 {out_directory}/{ c }_sign3.h5" )
                     else:
                         wget.download( f"https://chemicalchecker.com/api/db/getFile/{prefix}/{ c }_{ type_sign }.h5", out=out_directory )
             else:
@@ -394,8 +395,6 @@ class ChemicalChecker():
                     
                     for c in tqdm(combinations):
                         source = os.path.join( sign_directory, f"{ c }_{ type_sign }.h5" )
-                        if( type_sign == 'sign3' ):
-                            source = os.path.join( sign_directory, f"{ c }.h5" )
                             
                         sign_folder = os.path.join( local_cc_dir, "full", c[0], c, f"{c}.001", type_sign )
                         if( not os.path.isdir(sign_folder) ):
@@ -642,7 +641,13 @@ class ChemicalChecker():
                 metadatas.append(res)
             else:  # guess from filename
                 name = Path(file).stem
-                cctype, dataset_code, molset = name.split('_')
+                molset = 'full'
+                if( len(name.split('_'))==3):
+                    cctype, dataset_code, molset = name.split('_')
+                else:
+                    dataset_code, cctype = name.split('_')
+                    dataset_code = dataset_code+'.001'
+                    
                 res = list()
                 res.append(molset.lower())
                 res.append(dataset_code[0])
