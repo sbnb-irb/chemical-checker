@@ -329,7 +329,7 @@ class BaseSignature(object):
                              func_name, '_'])
         tmp_dir = tempfile.mktemp(prefix=job_name, dir=job_base_path)
 
-        job_path = kwargs.get("job_path", tmp_dir)
+        job_path = kwargs.pop("job_path", tmp_dir)
         if not os.path.isdir(job_path):
             os.mkdir(job_path)
         # check cpus
@@ -356,11 +356,6 @@ class BaseSignature(object):
             for line in script_lines:
                 fh.write(line + '\n')
 
-        # pickle self (the data) and fit args
-        pickle_file = '%s_%s_hpc.pkl' % (self.__class__.__name__, func_name)
-        pickle_path = os.path.join(job_path, pickle_file)
-        pickle.dump((self, args), open(pickle_path, 'wb'))
-
         # hpc parameters
         hpc_cfg = kwargs.get("hpc_cfg", cfg)
         params = kwargs
@@ -384,7 +379,6 @@ class BaseSignature(object):
             os.path.join(cfg.PATH.CC_REPO, 'package'), cc_config,
             singularity_image, script_name, pickle_file)
         # submit jobs
-        hpc_cfg = kwargs.get("hpc_cfg", cfg)
         cluster = HPC.from_config(hpc_cfg)
         cluster.submitMultiJob(command, **params)
         return cluster

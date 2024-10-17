@@ -24,6 +24,10 @@
         * The :mod:`~chemicalchecker.util` module pulls together
           general utilities.
 """
+import numpy as np
+np.int = int
+np.bool = bool
+
 import pandas
 from .core import ChemicalChecker
 from .util import Config
