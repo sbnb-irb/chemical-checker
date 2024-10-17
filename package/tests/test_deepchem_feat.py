@@ -49,21 +49,21 @@ class TestConverter(unittest.TestCase):
         # Get the adjacency lists grouped by degree
         deg_adj_lists = mol.get_deg_adjacency_lists()
         assert np.array_equal(
-            deg_adj_lists[0], np.zeros([0, 0], dtype=np.int32))
+            deg_adj_lists[0], np.zeros([0, 0], dtype=int))
         # The 4 outer atoms connected to central nitrogen
         assert np.array_equal(deg_adj_lists[1],
-                              np.array([[4], [4], [4], [4]], dtype=np.int32))
+                              np.array([[4], [4], [4], [4]], dtype=int))
         assert np.array_equal(
-            deg_adj_lists[2], np.zeros([0, 2], dtype=np.int32))
+            deg_adj_lists[2], np.zeros([0, 2], dtype=int))
         assert np.array_equal(
-            deg_adj_lists[3], np.zeros([0, 3], dtype=np.int32))
+            deg_adj_lists[3], np.zeros([0, 3], dtype=int))
         # Central nitrogen connected to everything else.
         assert np.array_equal(deg_adj_lists[4],
-                              np.array([[0, 1, 2, 3]], dtype=np.int32))
+                              np.array([[0, 1, 2, 3]], dtype=int))
         assert np.array_equal(
-            deg_adj_lists[5], np.zeros([0, 5], dtype=np.int32))
+            deg_adj_lists[5], np.zeros([0, 5], dtype=int))
         assert np.array_equal(
-            deg_adj_lists[6], np.zeros([0, 6], dtype=np.int32))
+            deg_adj_lists[6], np.zeros([0, 6], dtype=int))
 
     @skip_if_import_exception
     def test_single_carbon(self):
@@ -82,19 +82,19 @@ class TestConverter(unittest.TestCase):
         # No bonds, so degree adjacency lists are empty
         deg_adj_lists = mol.get_deg_adjacency_lists()
         assert np.array_equal(
-            deg_adj_lists[0], np.zeros([1, 0], dtype=np.int32))
+            deg_adj_lists[0], np.zeros([1, 0], dtype=int))
         assert np.array_equal(
-            deg_adj_lists[1], np.zeros([0, 1], dtype=np.int32))
+            deg_adj_lists[1], np.zeros([0, 1], dtype=int))
         assert np.array_equal(
-            deg_adj_lists[2], np.zeros([0, 2], dtype=np.int32))
+            deg_adj_lists[2], np.zeros([0, 2], dtype=int))
         assert np.array_equal(
-            deg_adj_lists[3], np.zeros([0, 3], dtype=np.int32))
+            deg_adj_lists[3], np.zeros([0, 3], dtype=int))
         assert np.array_equal(
-            deg_adj_lists[4], np.zeros([0, 4], dtype=np.int32))
+            deg_adj_lists[4], np.zeros([0, 4], dtype=int))
         assert np.array_equal(
-            deg_adj_lists[5], np.zeros([0, 5], dtype=np.int32))
+            deg_adj_lists[5], np.zeros([0, 5], dtype=int))
         assert np.array_equal(
-            deg_adj_lists[6], np.zeros([0, 6], dtype=np.int32))
+            deg_adj_lists[6], np.zeros([0, 6], dtype=int))
 
     @skip_if_import_exception
     def test_alkane(self):
@@ -112,21 +112,21 @@ class TestConverter(unittest.TestCase):
 
         deg_adj_lists = mol.get_deg_adjacency_lists()
         assert np.array_equal(
-            deg_adj_lists[0], np.zeros([0, 0], dtype=np.int32))
+            deg_adj_lists[0], np.zeros([0, 0], dtype=int))
         # Outer two carbonds are connected to central carbon
         assert np.array_equal(deg_adj_lists[1], np.array(
-            [[2], [2]], dtype=np.int32))
+            [[2], [2]], dtype=int))
         # Central carbon connected to outer two
         assert np.array_equal(
-            deg_adj_lists[2], np.array([[0, 1]], dtype=np.int32))
+            deg_adj_lists[2], np.array([[0, 1]], dtype=int))
         assert np.array_equal(
-            deg_adj_lists[3], np.zeros([0, 3], dtype=np.int32))
+            deg_adj_lists[3], np.zeros([0, 3], dtype=int))
         assert np.array_equal(
-            deg_adj_lists[4], np.zeros([0, 4], dtype=np.int32))
+            deg_adj_lists[4], np.zeros([0, 4], dtype=int))
         assert np.array_equal(
-            deg_adj_lists[5], np.zeros([0, 5], dtype=np.int32))
+            deg_adj_lists[5], np.zeros([0, 5], dtype=int))
         assert np.array_equal(
-            deg_adj_lists[6], np.zeros([0, 6], dtype=np.int32))
+            deg_adj_lists[6], np.zeros([0, 6], dtype=int))
 
     @skip_if_import_exception
     def test_construct_conv_mol(self):

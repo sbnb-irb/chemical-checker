@@ -424,7 +424,7 @@ def main(args):
         human_proteome = os.path.join(
             map_files["human_proteome"], "human_proteome.tab")
         uniprot2reactome = os.path.join(
-            map_files["uniprot2reatome"], "UniProt2Reactome_All_Levels.txt")
+            map_files["uniprot2reactome"], "UniProt2Reactome_All_Levels.txt")
 
         main._log.info("Reading human MetaPhors")
         any_human = human_metaphors(id_conversion, file_9606, human_proteome)

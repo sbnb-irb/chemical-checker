@@ -64,7 +64,7 @@ class string_net():
             l = l.split('\t')
             if len(l[20]) > 0:
                 for p in l[20].split(';'):
-                    ensp2Uniprot[p.replace(' ', '')].append(l[0])
+                    ensp2Uniprot[ p.replace(' ', '').split('.')[0] ].append(l[0]) 
         for i in string:
             p1 = i[0].replace('9606.', '')
             p2 = i[1].replace('9606.', '')
@@ -84,6 +84,8 @@ class string_net():
                     notmapped.append(p2)
         self.__log.info('\tProteins not mapped: %s' %
                         len(list(set(notmapped))))
+        print( 'Samples not mapped:', list(set(notmapped))[:10] )
+        
         sprot = []
         for p in list(set(ambiguous)):
             for i in ensp2Uniprot[p]:

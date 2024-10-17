@@ -311,9 +311,9 @@ class sign1(BaseSignature, DataSignature):
             dh5out.create_dataset("row_keys", data=dh5["keys"][:])
             dh5out["col_keys"] = h5py.SoftLink('/row_keys')
             dh5out.create_dataset(
-                "indices", (datasize[0], k), dtype=np.int32)
+                "indices", (datasize[0], k), dtype='int32')
             dh5out.create_dataset(
-                "distances", (datasize[0], k), dtype=np.float32)
+                "distances", (datasize[0], k), dtype='float32')
             dh5out.create_dataset("shape", data=(datasize[0], k))
             dh5out.create_dataset(
                 "metric", data=[metric.encode(encoding='UTF-8',
@@ -323,19 +323,19 @@ class sign1(BaseSignature, DataSignature):
             else:
                 index = faiss.IndexFlatIP(datasize[1])
             for chunk in s1.chunker():
-                data_temp = np.array(dh5[V_name][chunk], dtype=np.float32)
+                data_temp = np.array(dh5[V_name][chunk], dtype='float32')
                 if metric == "cosine":
                     normst = LA.norm(data_temp, axis=1)
-                    index.add(data_temp / normst[:, None])
+                    index.add( np.array( data_temp / normst[:, None], dtype='float32') )
                 else:
-                    index.add(data_temp)
+                    index.add( np.array(data_temp, dtype='float32') )
             for chunk in s1.chunker():
-                data_temp = np.array(dh5[V_name][chunk], dtype=np.float32)
+                data_temp = np.array(dh5[V_name][chunk], dtype='float32')
                 if metric == "cosine":
                     normst = LA.norm(data_temp, axis=1)
-                    Dt, It = index.search(data_temp / normst[:, None], k)
+                    Dt, It = index.search( np.array(data_temp / normst[:, None], dtype='float32'), k)
                 else:
-                    Dt, It = index.search(data_temp, k)
+                    Dt, It = index.search( np.array(data_temp, dtype='float32'), k)
                 dh5out["indices"][chunk] = It
                 if metric == "cosine":
                     dh5out["distances"][chunk] = np.maximum(0.0, 1.0 - Dt)
@@ -420,7 +420,7 @@ class sign1(BaseSignature, DataSignature):
                 pass
             for p, n in zip(pos, neg):
                 triplets += [(i, p, n)]
-        triplets = np.array(triplets).astype(np.int)
+        triplets = np.array(triplets).astype(int)
         fn = os.path.join(s1.model_path, "triplets_self.h5")
         self.__log.debug("Triplets path: %s" % fn)
         with h5py.File(fn, "w") as hf:

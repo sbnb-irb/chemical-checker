@@ -50,12 +50,48 @@ export LD_LIBRARY_PATH=/apps/manual/software/PostgreSQL/14.2/lib:$LD_LIBRARY_PAT
 # CUDA drivers
 export LD_LIBRARY_PATH=/apps/manual/software/CUDA/11.6.1/lib64:/apps/manual/software/CUDA/11.6.1/targets/x86_64-linux/lib:/apps/manual/software/CUDA/11.6.1/extras/CUPTI/lib64/:/apps/manual/software/CUDA/11.6.1/nvvm/lib64/:/apps/manual/software/CUDNN/8.3.2/lib:$LD_LIBRARY_PATH
 export SINGULARITYENV_LD_LIBRARY_PATH=$LD_LIBRARY_PATH
-export SINGULARITY_BINDPATH="/aloy/home,/aloy/data,/aloy/scratch,/aloy/web_checker,/aloy/web_repository"
+export SINGULARITY_BINDPATH="/aloy/home,/aloy/data,/aloy/scratch,/aloy/web_checker,/aloy/web_repository,/apps/manual/software/CUDA"
 
 %(command)s
 
     """
 
+    templateScript = """\
+#!/bin/bash
+#
+#
+
+#SBATCH -p spot_gpu
+#SBATCH --nodelist=irbgcn[02-06]
+#SBATCH --gres=gpu:1
+
+#SBATCH --time=10-00:00:00
+
+##SBATCH --qos=long
+
+# paramiko is not loaded
+source /etc/profile.d/z00-lmod.sh
+
+# CUDA drivers
+module load CUDA/11.7.0
+
+export SINGULARITYENV_LD_LIBRARY_PATH=$LD_LIBRARY_PATH
+export SINGULARITY_BINDPATH="/aloy/home,/aloy/data,/aloy/scratch,/aloy/web_checker,/apps/easybuild/rocky-8.7/intel/icelake/software/CUDA"
+
+# Options for sbatch
+%(options)s
+# End of qsub options
+
+# Loads default environment configuration
+if [[ -f $HOME/.bashrc ]]
+then
+  source $HOME/.bashrc
+fi
+
+%(command)s
+
+    """
+    
     defaultOptions = """\
 #$ -S /bin/bash
 #$ -r yes
@@ -97,8 +133,12 @@ export SINGULARITY_BINDPATH="/aloy/home,/aloy/data,/aloy/scratch,/aloy/web_check
         """Yields n successive chunks from l."""
         if isinstance(l, list) or isinstance(l, np.ndarray):
             # a list of 60 000 entries split in 6000 chunks
-            for i in np.array_split(l, n):
-                yield i   # yields one of the 6000 chunks of 10 elements
+            ind = list( range( len(l) ) )
+            for i in np.array_split(ind, n):
+                tmp = []
+                for idx in i:
+                    tmp.append( l[idx] )
+                yield tmp   # yields one of the 6000 chunks of 10 elements
         elif isinstance(l, dict):
             keys = list(l.keys())
             keys.sort()
@@ -126,6 +166,7 @@ export SINGULARITY_BINDPATH="/aloy/home,/aloy/data,/aloy/scratch,/aloy/web_check
         compress_out = kwargs.get("compress", True)
         check_error = kwargs.get("check_error", True)
         maxtime = kwargs.get("time", None)
+        membycore = int(kwargs.get("mem_by_core", None))
 
         submit_string = 'sbatch --parsable '
 
@@ -139,6 +180,10 @@ export SINGULARITY_BINDPATH="/aloy/home,/aloy/data,/aloy/scratch,/aloy/web_check
 
         jobParams = ["#SBATCH -J " + self.job_name]
         jobParams.append("#SBATCH --chdir=" + self.jobdir)
+        
+        self.__log.debug( f"memory : { membycore }" )
+        if( membycore != None ):
+            jobParams.append( f"#SBATCH --mem-per-cpu={ membycore }G" )
 
         # the right partition for SBNB
         if self.queue is not None:
@@ -184,7 +229,7 @@ export SINGULARITY_BINDPATH="/aloy/home,/aloy/data,/aloy/scratch,/aloy/web_check
             command = command.replace("<FILE>", input_path)
 
         # adding --nv to the command in case it is not present already
-        singArg = "--nv"
+        singArg = " --cleanenv --nv"
         if singArg not in command:
             self.__log.warning(
                     "The Singularity command submitted doesn't contain a necessary argument: Adding {}".format(singArg))

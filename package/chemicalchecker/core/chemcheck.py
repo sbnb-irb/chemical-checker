@@ -49,8 +49,10 @@ import h5py
 import json
 import shutil
 import itertools
+import wget
 import numpy as np
 import pandas as pd
+from tqdm import tqdm
 from glob import glob
 from pathlib import Path
 
@@ -96,7 +98,7 @@ class ChemicalChecker():
         self._exemplary_id = "001"
         self._metadata = None
         self.__log.debug("ChemicalChecker with root: %s", self.cc_root)
-
+                
         # If non-existing CC_root
         if not os.path.isdir(self.cc_root):
             self.__log.debug("Empty root directory,"
@@ -104,21 +106,29 @@ class ChemicalChecker():
             original_umask = os.umask(0)
             os.makedirs(self.cc_root, 0o775)
             os.umask(original_umask)
-
+            
+            datasets = []
             # Test connection to DB, the database is not necessarily present
             self.__log.debug("Testing DB connection.")
             if dbconnect and test_connection():
-                for molset in self._basic_molsets:
-                    for dataset in Dataset.get():
-                        ds = dataset.dataset_code
-                        new_dir = os.path.join(
-                            self.cc_root, molset, ds[:1], ds[:2], ds)
-                        self._datasets.add(ds)
-                        original_umask = os.umask(0)
-                        os.makedirs(new_dir, 0o775)
-                        os.umask(original_umask)
+                for dataset in Dataset.get():
+                    ds = dataset.dataset_code
+                    datasets.append(ds)
+                    
             else:
+                for space in 'ABCDE':
+                    for n in '12345':
+                        datasets.append( space + n+'.'+self._exemplary_id )
                 self.__log.debug("No database found, working locally.")
+            
+            for molset in self._basic_molsets:
+                for ds in datasets:
+                    new_dir = os.path.join(
+                            self.cc_root, molset, ds[:1], ds[:2], ds)
+                    self._datasets.add(ds)
+                    original_umask = os.umask(0)
+                    os.makedirs(new_dir, 0o775)
+                    os.umask(original_umask)
 
         else:
             # if the directory exists get molsets and datasets
@@ -347,6 +357,61 @@ class ChemicalChecker():
                     'problem reading file %s: %s' % (path, str(ex)))
         return molset_dataset_sign
 
+    def download_all_ftp_signatures(self, out_directory, type_sign='sign2'):
+        if( not os.path.isdir(out_directory) ):
+            os.mkdir(out_directory)
+            
+        if( os.path.isdir(out_directory) ):
+            if( type_sign in ['sign0', 'sign1', 'sign2', 'sign3'] ):
+                prefix = f"signature{ type_sign[-1] }"
+                spaces = ['A','B', 'C', 'D', 'E']
+                combinations = []
+                for s in spaces:
+                    for i in range(1, 6):
+                        combinations.append( s+str(i) )
+                
+                for c in tqdm(combinations):
+                    if( type_sign == 'sign3' ):
+                        wget.download( f"https://chemicalchecker.com/api/db/getFile/root/{ c }.h5", out=out_directory )
+                        os.system( f"mv {out_directory}/{ c }.h5 {out_directory}/{ c }_sign3.h5" )
+                    else:
+                        wget.download( f"https://chemicalchecker.com/api/db/getFile/{prefix}/{ c }_{ type_sign }.h5", out=out_directory )
+            else:
+                self.__log.warning(
+                        'Invalid signature option: %s. This function is compatible with sign0, sign1, sign2 and sign3' % ( type_sign ) )
+        else:
+            self.__log.warning(
+                        'Output directory does not exist: %s' % ( out_directory ) )
+    
+    def copy_ftp_signatures_in_cc_root(self, local_cc_dir, sign_directory, type_sign='sign2'):
+        if( os.path.isdir(local_cc_dir) ):
+            if( os.path.isdir(sign_directory) ):
+                if( type_sign in ['sign0', 'sign1', 'sign2', 'sign3'] ):
+                    spaces = ['A','B', 'C', 'D', 'E']
+                    combinations = []
+                    for s in spaces:
+                        for i in range(1, 6):
+                            combinations.append( s+str(i) )
+                    
+                    for c in tqdm(combinations):
+                        source = os.path.join( sign_directory, f"{ c }_{ type_sign }.h5" )
+                            
+                        sign_folder = os.path.join( local_cc_dir, "full", c[0], c, f"{c}.001", type_sign )
+                        if( not os.path.isdir(sign_folder) ):
+                            os.mkdir( sign_folder )
+                        dest = os.path.join( local_cc_dir, "full", c[0], c, f"{c}.001", type_sign, f"{ type_sign }.h5" )
+                        if( not os.path.isfile( dest ) ):
+                            os.symlink( source, dest )
+                else:
+                    self.__log.warning(
+                            'Invalid signature option: %s. This function is compatible with sign0, sign1, sign2 and sign3' % ( type_sign ) )
+            else:
+                self.__log.warning(
+                            'Signatures download directory does not exist: %s' % ( sign_directory ) )
+        else:
+            self.__log.warning(
+                            'CC local directory does not exist: %s' % ( local_cc_dir ) )
+    
     def report_dimensions(self, molset='*', dataset='*', signature='*',
                           matrix='V'):
         """Report dimensions of all available signatures in the CC.
@@ -576,7 +641,13 @@ class ChemicalChecker():
                 metadatas.append(res)
             else:  # guess from filename
                 name = Path(file).stem
-                cctype, dataset_code, molset = name.split('_')
+                molset = 'full'
+                if( len(name.split('_'))==3):
+                    cctype, dataset_code, molset = name.split('_')
+                else:
+                    dataset_code, cctype = name.split('_')
+                    dataset_code = dataset_code+'.001'
+                    
                 res = list()
                 res.append(molset.lower())
                 res.append(dataset_code[0])
@@ -962,7 +1033,7 @@ class ChemicalChecker():
 
         return None
 
-    def export_symlinks(self, dest_path=None, signatures=True, models=False):
+    def export_symlinks(self, dest_path=None, signatures=True, models=True):
         """Creates symlinks for all available signatures H5 or models path
            in a single folder.
 

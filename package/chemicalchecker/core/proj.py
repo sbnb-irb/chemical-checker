@@ -73,7 +73,7 @@ class proj(BaseSignature, DataSignature):
                 dst.create_dataset("mappings", data=src['mappings'][:],
                                    dtype=sdtype)
             src_len = src["V"].shape[0]
-            dst.create_dataset("V", (src_len, n_components), dtype=np.float32)
+            dst.create_dataset("V", (src_len, n_components), dtype='float32')
             for i in tqdm(range(0, src_len, batch_size), 'PRE transform'):
                 chunk = slice(i, i + batch_size)
                 dst['V'][chunk] = preprocess_algo.transform(src['V'][chunk])
@@ -100,7 +100,7 @@ class proj(BaseSignature, DataSignature):
                 dst.create_dataset("mappings", data=src['mappings'][:],
                                    dtype=sdtype)
             src_len = src["V"].shape[0]
-            dst.create_dataset("V", (src_len, 2), dtype=np.float32)
+            dst.create_dataset("V", (src_len, 2), dtype='float32')
             for i in tqdm(range(0, src_len, batch_size), 'transform'):
                 chunk = slice(i, i + batch_size)
                 dst['V'][chunk] = preprocess_algo.transform(src['V'][chunk])
@@ -124,8 +124,8 @@ class proj(BaseSignature, DataSignature):
             self_full = self.get_molset("full")
             self_full = proj(self_full.signature_path,
                              self_full.dataset, proj_type=self.proj_type)
-            #self.predict(sign_full, self_full.data_path)
-            self.map(self_full.data_path)
+            self.predict(sign_full, self_full.data_path)
+            #self.map(self_full.data_path) --> not implemented
 
     def predict(self, signature, destination, *args, **kwargs):
         """Predict projection for new data."""

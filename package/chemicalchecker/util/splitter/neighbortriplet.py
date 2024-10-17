@@ -308,8 +308,8 @@ class BaseTripletSampler(object):
             'split_fractions': [.8, .2],
             'suffix': 'eval',
             'cpu': 1,
-            'x_dtype': np.float32,
-            'y_dtype': np.float32
+            'x_dtype': float,
+            'y_dtype': float
         }
         def_save_kwargs.update(save_kwargs)
         self.save_kwargs = def_save_kwargs
@@ -325,14 +325,14 @@ class BaseTripletSampler(object):
         splits = np.cumsum(fractions)
         splits = splits[:-1]
         splits *= len(idxs)
-        splits = splits.round().astype(np.int)
+        splits = splits.round().astype(int)
         return np.split(idxs, splits)
 
     def save_triplets(self, triplets, mean_center_x=True, shuffle=True,
                       split_names=['train', 'test'],
                       split_fractions=[.8, .2],
                       suffix='eval', cpu=1,
-                      x_dtype=np.float32, y_dtype=np.float32):
+                      x_dtype=float, y_dtype=float):
         """Save sampled triplets to file.
 
         This function saves triplets performing the train test split,
@@ -431,7 +431,7 @@ class PrecomputedTripletSampler(BaseTripletSampler):
                           split_names=['train', 'test'],
                           split_fractions=[.8, .2],
                           suffix='eval', cpu=1,
-                          x_dtype=np.float32, y_dtype=np.float32):
+                          x_dtype=float, y_dtype=float):
 
         try:
             from chemicalchecker.core.signature_data import DataSignature
@@ -731,8 +731,8 @@ class OldTripletSampler(BaseTripletSampler):
                           check_distances=True,
                           split_names=['train', 'test'],
                           split_fractions=[.8, .2],
-                          suffix='eval', x_dtype=np.float32,
-                          y_dtype=np.float32,
+                          suffix='eval', x_dtype=float,
+                          y_dtype=float,
                           num_triplets=1e6, limit=100000, cpu=1):
         """Sample triplets using an approach suited for large spaces.
 
@@ -779,7 +779,7 @@ class OldTripletSampler(BaseTripletSampler):
         OldTripletSampler.__log.info("Reducing redundancy")
         rnd = RNDuplicates(cpu=cpu)
         _, ref_matrix, full_ref_map = rnd.remove(
-            neighbors_matrix.astype(np.float32))
+            neighbors_matrix.astype(float))
         ref_full_map = dict()
         for key, value in full_ref_map.items():
             ref_full_map.setdefault(value, list()).append(key)
@@ -881,7 +881,7 @@ class OldTripletSampler(BaseTripletSampler):
             # create faiss index
             NN[split_name] = faiss.IndexFlatL2(nr_matrix[split_name].shape[1])
             # add data
-            NN[split_name].add(nr_matrix[split_name])
+            NN[split_name].add( np.array(nr_matrix[split_name], dtype='float32') )
 
         # mean centering columns
         if mean_center_x:
@@ -948,7 +948,7 @@ class OldTripletSampler(BaseTripletSampler):
                     for i in tqdm(range(0, len(nr_matrix[split2]), csize)):
                         chunk = slice(i, i + csize)
                         _, neig_idxs_chunk = NN[split1].search(
-                            nr_matrix[split2][chunk], F + 1)
+                            np.array( nr_matrix[split2][chunk], dtype='float32'), F + 1)
                         neig_idxs.append(neig_idxs_chunk)
                     neig_idxs = np.vstack(neig_idxs)
                     # the nearest neig between same groups is the molecule
@@ -958,7 +958,7 @@ class OldTripletSampler(BaseTripletSampler):
                     neig_idxs = neig_idxs[:, 1:]
                 else:
                     _, neig_idxs = NN[split1].search(
-                        nr_matrix[split2], F)
+                        np.array( nr_matrix[split2], dtype='float32'), F)
 
                 # get probabilities for T
                 t_prob = ((np.arange(T + 1)[::-1]) /

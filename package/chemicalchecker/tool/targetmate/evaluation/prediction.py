@@ -144,7 +144,7 @@ class Prediction(HPCUtils):
                 V = v
             else:
                 V = np.hstack([V, v])
-        idxs = np.array([iks_dict[k] for k in keys if k in iks_dict]).astype(np.int)
+        idxs = np.array([iks_dict[k] for k in keys if k in iks_dict]).astype(int)
         # self.__log.debug("Signature read: {}".format(V.shape))
         return V, idxs
 
@@ -326,7 +326,7 @@ class Prediction(HPCUtils):
             self.__log.info("File to data used: loading signatures")
             self.data = os.path.abspath(self.data)
             data = self.load_signatures(self.data)
-        elif (type(self.data) == np.ndarray) and (self.data.dtype == np.float32):
+        elif (type(self.data) == np.ndarray) and (self.data.dtype == float ):
             self.__log.info("Signatures introduced")
             data = self.data
         elif type(self.data) == list:

@@ -107,7 +107,7 @@ class sign2(BaseSignature, DataSignature):
             lines = fh.readlines()
         graph_mol = set(l.split()[0] for l in lines)
         # we can just compare the total nr
-        if not len(graph_mol) == len(sign1.unique_keys):
+        if not len(graph_mol) == len(neig1.unique_keys):
             raise Exception("Graph %s is missing nodes." % graph_file)
         # save graph stats
         graph_stat_file = os.path.join(self.stats_path, 'graph_stats.json')
@@ -221,7 +221,7 @@ class sign2(BaseSignature, DataSignature):
                 destination = destination.data_path
             with h5py.File(destination, "w") as results:
                 # initialize V and keys datasets
-                results.create_dataset('V', (tot_inks, 128), dtype=np.float32)
+                results.create_dataset('V', (tot_inks, 128), dtype='float32')
                 results.create_dataset(
                     'keys', data=np.array(sign1.keys,
                                           DataSignature.string_dtype()))

@@ -29,9 +29,9 @@ from .preprocess import Preprocess
 
 from chemicalchecker.util import logged
 from chemicalchecker.util.splitter import OldTripletSampler, TripletIterator
-from chemicalchecker.util.splitter import BaseTripletSampler
+from chemicalchecker.util.splitter import BaseTripletSampler, AdriaTripletSampler
 from chemicalchecker.util.parser.converter import Converter
-
+from chemicalchecker.database import Dataset
 
 @logged
 class sign3(BaseSignature, DataSignature):
@@ -150,7 +150,7 @@ class sign3(BaseSignature, DataSignature):
         # build matrix stacking horizontally signature
         with h5py.File(destination, "w") as fh:
             fh.create_dataset('x_test', (tot_inks, 128 * tot_ds),
-                              dtype=np.float32)
+                              dtype=float)
             fh.create_dataset('keys', data=np.array(
                 inchikeys, DataSignature.string_dtype()))
             for idx, sign in enumerate(sign2_list):
@@ -184,7 +184,7 @@ class sign3(BaseSignature, DataSignature):
                          (tot_ds, tot_inks))
         # build matrix stacking horizontally signature
         with h5py.File(destination, "w") as fh:
-            fh.create_dataset('x_test', (tot_inks, tot_ds), dtype=np.float32)
+            fh.create_dataset('x_test', (tot_inks, tot_ds), dtype=float)
             fh.create_dataset('keys', data=np.array(
                 inchikeys, DataSignature.string_dtype()))
             for idx, sign in enumerate(sign2_list):
@@ -196,12 +196,179 @@ class sign3(BaseSignature, DataSignature):
                                  (sign.dataset, np.count_nonzero(coverage)))
                 fh['x_test'][:, idx:(idx + 1)] = np.expand_dims(coverage, 1)
 
+    @staticmethod
+    def complete_sign2_universe_global_pipeline(sign2_universe, sign2_coverage, tmp_path=None, root_cc=None, ref_cc=None, calc_idx_chemical_spaces=[0,1,2,3,4], sign2_src_dataset_list=None ):
+        """Completes the universe for extra molecules.
+
+        Important if the dataset we are fitting is defined on molecules
+        that largely do not overlap with CC molecules. In that case there is no
+        orthogonal information to derive sign3. We should always have at least
+        the chemistry (calculated) level available for all molecules of the
+        dataset.
+
+        Args:
+            sign2_universe(str): Path to the union of all signatures 2 for all
+                molecules in the CC universe. (~1M x 3200)
+            sign2_coverage(str): Path to the coverage of all signatures 2 for
+                all molecules in the CC universe. (~1M x 25)
+            tmp_path(str): Temporary path where to save extra molecules'
+                signatures.
+            calc_idx_chemical_spaces(list): List of indexes to complete in concerning the A chemical space (For example: [0,2,3] would mean ['A1.001', 'A3.001', 'A4.001'])
+            sign2_src_dataset_list: List of sign2 dataset paths
+        Returns:
+            Paths ot the new sign2 universe and coverage file.
+        """
+        from chemicalchecker import ChemicalChecker
+        
+        cc_ref = ChemicalChecker(root_cc)
+        
+        merged_sign2_keys = set()
+        datasets = [ds.code for ds in Dataset.get(exemplary=True)]
+        for d in datasets:
+            sign2 = cc_ref.get_signature('sign2', 'full', d)
+            merged_sign2_keys.update( sign2.keys )
+           
+        calc_ds_names = []
+        chem_ds_names=['A1.001', 'A2.001', 'A3.001', 'A4.001', 'A5.001']   
+        for ic in calc_idx_chemical_spaces:
+            calc_ds_names.append( chem_ds_names[ic] )
+        
+        # make a copy of the sign2 universe and coverage
+        sign3.__log.info('Completing universe, making copy of original files')
+        sign2_universe_ext = sign2_universe + '.complete.h5'
+        sign2_coverage_ext = sign2_coverage + '.complete.h5'
+        
+        # shortcut if already computed
+        if os.path.isfile(sign2_universe_ext):
+            if os.path.isfile(sign2_coverage_ext):
+                sign3.__log.debug('Completed universe already available')
+                return sign2_universe_ext, sign2_coverage_ext
+                
+        if not os.path.isfile(sign2_universe_ext):
+            shutil.copyfile(sign2_universe, sign2_universe_ext)
+        shutil.copyfile(sign2_coverage, sign2_coverage_ext)
+        
+        # which molecules in which space should be calculated?
+        cov = DataSignature(sign2_coverage)
+        inks, cov_ds = cov.get_vectors( merged_sign2_keys, dataset_name='x_test')
+        sign3.__log.info('Coverage matrix shape: %s' % str(cov_ds.shape))
+        conv = Converter()
+        # check coverage of calculated spaces
+        missing = np.sum(~cov_ds[:, calc_idx_chemical_spaces].astype(bool), axis=0)
+        missing = missing.ravel().tolist()
+        sign3.__log.info(
+            "Completing universe for missing molecules: %s" %
+            ', '.join(['%s: %s' % a for a in zip(calc_ds_names, missing)]))
+        # reference CC
+        if ref_cc is not None:
+            cc_ref = ChemicalChecker(ref_cc)
+            
+        # create CC instance to host signatures
+        cc_extra = ChemicalChecker(os.path.join(tmp_path, 'tmp_cc'))
+        # for each calculated space
+        for ds_id, ds in zip(calc_idx_chemical_spaces, calc_ds_names):
+            print('Calculating ', ds)
+            
+            print('--- Preparing molecule identifiers - converting inchikey to inchi')
+            # prepare input file with missing inchikeys
+            input_file = os.path.join(tmp_path, '%s_input.tsv' % ds)
+            if not os.path.isfile(input_file):
+                fh = open(input_file, 'w')
+                miss_ink = inks[cov_ds[:, ds_id] == 0]
+                mi = miss_ink
+                # new inks must be sorted
+                assert(all(mi[i] <= mi[i + 1] for i in range(len(mi) - 1)))
+                sign3.__log.info('Getting InChI for %s molecules' %
+                                 (len(miss_ink)))
+                miss_count = 0
+                for ink in miss_ink:
+                    try:
+                        inchi = conv.inchikey_to_inchi(ink)
+                    except Exception as ex:
+                        sign3.__log.warning(str(ex))
+                        continue
+                    fh.write('%s\t%s\n' % (ink, inchi))
+                    miss_count += 1
+                fh.close()
+                sign3.__log.info('Adding %s molecules to %s' %
+                                 (miss_count, ds))
+                if miss_count == 0:
+                    continue
+            
+            print('--- Running preprocessing')
+            # call preprocess with predict
+            s0_ref = cc_ref.get_signature('sign0', 'full', ds)
+            raw_file = os.path.join(tmp_path, '%s_raw.h5' % ds)
+            if not os.path.isfile(raw_file):
+                Preprocess.preprocess_predict(s0_ref, input_file, raw_file,
+                                              'inchi')
+            print('--- Predicting sign0')
+            # run sign0 predict
+            s0_ext = cc_extra.get_signature('sign0', 'full', ds)
+            if not os.path.isfile(s0_ext.data_path):
+                s0_ref.predict(data_file=raw_file, destination=s0_ext)
+            
+            print('--- Predicting sign1')
+            # run sign1 predict
+            s1_ext = cc_extra.get_signature('sign1', 'full', ds)
+            s1_ref = cc_ref.get_signature('sign1', 'reference', ds)
+            if not os.path.isfile(s1_ext.data_path):
+                s1_ref.predict(s0_ext, destination=s1_ext)
+            
+            print('--- Predicting sign2')
+            # run sign2 predict
+            s2_ext = cc_extra.get_signature('sign2', 'full', ds)
+            s2_ref = cc_ref.get_signature('sign2', 'reference', ds)
+            
+            if not os.path.isfile(s2_ext.data_path):
+                s2_ref.predict(s1_ext, destination=s2_ext)
+                
+            # update sign2_universe and sign2_coverage
+            upd_uni = h5py.File(sign2_universe_ext, "a")
+            upd_cov = h5py.File(sign2_coverage_ext, "a")
+            rows = np.isin(upd_uni['keys'][:].astype(str), s2_ext.keys)
+            rows_idx = np.argwhere(rows).ravel()
+            sign3.__log.info('Updating %s universe rows in %s' %
+                             (len(rows_idx), ds))
+            # new keys must be a subset of universe
+            print('--- Updating coverage and universe')
+            assert(len(rows_idx) == len(s2_ext.keys))
+            for rid, sig in zip(rows_idx, s2_ext[:]):
+                old_sig = upd_uni['x_test'][rid][ds_id * 128:(ds_id + 1) * 128]
+                # old signature in universe must be nan
+                assert(np.all(np.isnan(old_sig)))
+                new_row = np.copy(upd_uni['x_test'][rid])
+                new_row[ds_id * 128:(ds_id + 1) * 128] = sig
+                upd_uni['x_test'][rid] = new_row
+                new_row = np.copy(upd_cov['x_test'][rid])
+                new_row[ds_id:ds_id + 1] = 1
+                upd_cov['x_test'][rid] = new_row
+            upd_uni.close()
+            upd_cov.close()
+        # final report
+        upd_uni = h5py.File(sign2_universe_ext, "r")
+        upd_cov = h5py.File(sign2_coverage_ext, "r")
+        old_cov = h5py.File(sign2_coverage, "r")
+        sign3.__log.info('Checking updated universe...')
+
+        for col, name in enumerate( sign2_src_dataset_list ):  # cc_ref.datasets
+            tot_upd = sum(upd_cov['x_test'][:, col])
+            cov_delta = int(tot_upd - sum(old_cov['x_test'][:, col]))
+            if cov_delta == 0:
+                continue
+            sign3.__log.info('Added %s molecules to %s' % (cov_delta, name))
+            # check head and tail of signature
+            sig_head = upd_uni['x_test'][:, col * 128]
+            sig_tail = upd_uni['x_test'][:, (col + 1) * 128 - 1]
+            assert(sum(~np.isnan(sig_head)) == tot_upd)
+            assert(sum(~np.isnan(sig_tail)) == tot_upd)
+        
     def complete_sign2_universe(self, sign2_self, sign2_universe,
                                 sign2_coverage, tmp_path=None,
                                 calc_ds_idx=[0, 1, 2, 3, 4],
                                 calc_ds_names=['A1.001', 'A2.001', 'A3.001',
                                                'A4.001', 'A5.001'],
-                                ref_cc=None):
+                                ref_cc=None, exec_universe_in_parallel=False, cores=None):
         """Completes the universe for extra molecules.
 
         Important if the dataset we are fitting is defined on molecules
@@ -286,8 +453,13 @@ class sign3(BaseSignature, DataSignature):
             s0_ref = cc_ref.get_signature('sign0', 'full', ds)
             raw_file = os.path.join(tmp_path, '%s_raw.h5' % ds)
             if not os.path.isfile(raw_file):
+                pcores = None
+                if( exec_universe_in_parallel ):
+                    pcores = 4
+                    if(cores != None):
+                        pcores = cores
                 Preprocess.preprocess_predict(s0_ref, input_file, raw_file,
-                                              'inchi')
+                                              'inchi', cores=pcores)
             # run sign0 predict
             s0_ext = cc_extra.get_signature('sign0', 'full', ds)
             if not os.path.isfile(s0_ext.data_path):
@@ -300,6 +472,7 @@ class sign3(BaseSignature, DataSignature):
             # run sign2 predict
             s2_ext = cc_extra.get_signature('sign2', 'full', ds)
             s2_ref = cc_ref.get_signature('sign2', 'reference', ds)
+            
             if not os.path.isfile(s2_ext.data_path):
                 s2_ref.predict(s1_ext, destination=s2_ext)
             # update sign2_universe and sign2_coverage
@@ -423,6 +596,8 @@ class sign3(BaseSignature, DataSignature):
                 sampler_args = (self.triplet_sign, X, self.traintest_file)
             sample_obj = sampler_class(*sampler_args)
             sampler_kwargs = triplets_sampler[2]
+            if( sampler_kwargs is None ):
+                sampler_kwargs = {}
         # if evaluating, perform the train-test split
         if evaluate:
             save_kwargs = {
@@ -538,7 +713,7 @@ class sign3(BaseSignature, DataSignature):
             splits = np.cumsum(fractions)
             splits = splits[:-1]
             splits *= len(idxs)
-            splits = splits.round().astype(np.int)
+            splits = splits.round().astype( int)
             return np.split(idxs, splits)
 
         split_idxs = get_split_indeces(confidence_train_x.shape[0], split_fractions)
@@ -646,25 +821,25 @@ class sign3(BaseSignature, DataSignature):
         with h5py.File(self.data_path, "a") as results:
             # the actual confidence value will be stored here
             safe_create(results, 'confidence', (tot_inks,),
-                        dtype=np.float32)
+                        dtype=float)
             # this is to store robustness
             safe_create(results, 'robustness',
-                        (tot_inks,), dtype=np.float32)
+                        (tot_inks,), dtype=float)
             # this is to store applicability
             safe_create(results, 'applicability',
-                        (tot_inks,), dtype=np.float32)
+                        (tot_inks,), dtype=float)
             # this is to store priors
             safe_create(results, 'prior',
-                        (tot_inks,), dtype=np.float32)
+                        (tot_inks,), dtype=float)
             # this is to store priors based on signature
             safe_create(results, 'prior_signature',
-                        (tot_inks,), dtype=np.float32)
+                        (tot_inks,), dtype=float)
 
             # predict signature 3 for universe molecules
             with h5py.File(self.sign2_universe, "r") as features:
                 # reference prediction (based on no information)
                 nan_feat = np.full((1, features['x_test'].shape[1]),
-                                   np.nan, dtype=np.float32)
+                                   np.nan, dtype=float)
                 nan_pred = siamese.predict(nan_feat)
                 # read input in chunks
                 for idx in tqdm(range(0, tot_inks, chunk_size),
@@ -1362,7 +1537,7 @@ class sign3(BaseSignature, DataSignature):
         known_onlyself = mask_keep(self.dataset_idx, known_x)
         known_onlyself_pred = siamese.predict(known_onlyself)
         known_onlyself_neig = faiss.IndexFlatL2(known_onlyself_pred.shape[1])
-        known_onlyself_neig.add(known_onlyself_pred.astype(np.float32))
+        known_onlyself_neig.add( np.array( known_onlyself_pred, dtype='float32') )
         known_onlyself_neig_file = os.path.join(save_path, 'neig.index')
         faiss.write_index(known_onlyself_neig, known_onlyself_neig_file)
         self.__log.info('Neighbor Index saved: %s' % known_onlyself_neig_file)
@@ -1485,7 +1660,7 @@ class sign3(BaseSignature, DataSignature):
                                            dropout_fn, p_self=p_self),
                                        dropout_samples=1)
                 pred = np.mean(pred, axis=1)
-                only_self_dists, _ = neig_index.search(pred, app_thr)
+                only_self_dists, _ = neig_index.search( np.array(pred, dtype='float32'), app_thr)
                 if app_range is None:
                     d_min = np.min(only_self_dists)
                     d_max = np.max(only_self_dists)
@@ -1511,7 +1686,7 @@ class sign3(BaseSignature, DataSignature):
             return applicability, app_range, consensus
         else:
             pred = siamese.predict(mask_exclude(self.dataset_idx, features))
-            dists, _ = neig_index.search(pred, app_thr)
+            dists, _ = neig_index.search( np.array(pred, dtype='float32'), app_thr)
             d_min = np.min(dists)
             d_max = np.max(dists)
             app_range = np.array([d_min, d_max])
@@ -1527,7 +1702,7 @@ class sign3(BaseSignature, DataSignature):
         # reference prediction (based on no information)
         if nan_pred is None:
             nan_feat = np.full(
-                (1, features.shape[1]), np.nan, dtype=np.float32)
+                (1, features.shape[1]), np.nan, dtype=float)
             nan_pred = siamese_cp.predict(nan_feat)
         samples = siamese_cp.predict(mask_exclude(self.dataset_idx, features),
                                      dropout_fn=partial(
@@ -1743,18 +1918,18 @@ class sign3(BaseSignature, DataSignature):
         return inchikeys
 
     def fit(self, sign2_list=None, sign2_self=None, triplet_sign=None,
-            sign2_universe=None, complete_universe='full',
+            sign2_universe=None, complete_universe=False, exec_universe_in_parallel=False,
             sign2_coverage=None,
             model_confidence=True, save_correlations=False,
             predict_novelty=False, update_preds=True,
             chunk_size=1000, suffix=None, plots_train=True,
-            triplets_sampler=None, **kwargs):
+            triplets_sampler=None, hpc_args = {}, **kwargs):
         """Fit signature 3 given a list of signature 2.
 
         Args:
             sign2_list(list): List of signature 2 objects to learn from.
             sign2_self(sign2): Signature 2 of the current space.
-            triplet_sign(sign1): Signature used to define acnhor positive and 
+            triplet_sign(sign1): Signature used to define anchor positive and 
                 negative in triplets.
             sign2_universe(str): Path to the union of all signatures 2 for all
                 molecules in the CC universe. (~1M x 3200)
@@ -1787,8 +1962,7 @@ class sign3(BaseSignature, DataSignature):
             import faiss
         except ImportError as err:
             raise err
-        BaseSignature.fit(self, **kwargs)
-
+        BaseSignature.fit(self, kwargs=hpc_args )
         # signature specific checks
         if self.molset != "full":
             self.__log.debug("Fit will be done with the full sign3")
@@ -1842,11 +2016,15 @@ class sign3(BaseSignature, DataSignature):
                 calc_ds_names = ['A1.001', 'A3.001', 'A4.001', 'A5.001']
             if complete_universe == 'custom':
                 calc_ds_idx = kwargs['calc_ds_idx']
-                calc_ds_names = kwargs['calc_ds_names']
+                calc_ds_names = kwargs['calc_ds_names'] 
+            
+            pcores = None
+            if( exec_universe_in_parallel ):
+                pcores = hpc_args.get("cpu", 4)
             res = self.complete_sign2_universe(
                 sign2_self, self.sign2_universe, self.sign2_coverage,
                 tmp_path=self.model_path, calc_ds_idx=calc_ds_idx,
-                calc_ds_names=calc_ds_names)
+                calc_ds_names=calc_ds_names, exec_universe_in_parallel = exec_universe_in_parallel, cores = pcores)
             self.sign2_universe, self.sign2_coverage = res
 
         # check if performance evaluations need to be done
@@ -1942,7 +2120,7 @@ class sign3(BaseSignature, DataSignature):
             self.update_status("Predicting universe Sign3")
             with h5py.File(self.data_path, "a") as results:
                 # initialize V and keys datasets
-                safe_create(results, 'V', (tot_inks, 128), dtype=np.float32)
+                safe_create(results, 'V', (tot_inks, 128), dtype='float32')
                 safe_create(results, 'keys',
                             data=np.array(self.universe_inchikeys,
                                           DataSignature.string_dtype()))
@@ -1958,31 +2136,31 @@ class sign3(BaseSignature, DataSignature):
                 safe_create(results, 'shape', data=(tot_inks, 128))
                 # the actual confidence value will be stored here
                 safe_create(results, 'confidence', (tot_inks,),
-                            dtype=np.float32)
+                            dtype=float)
                 if model_confidence:
                     # this is to store robustness
                     safe_create(results, 'robustness',
-                                (tot_inks,), dtype=np.float32)
+                                (tot_inks,), dtype='float32')
                     # this is to store applicability
                     safe_create(results, 'applicability',
-                                (tot_inks,), dtype=np.float32)
+                                (tot_inks,), dtype='float32')
                     # this is to store priors
                     safe_create(results, 'prior',
-                                (tot_inks,), dtype=np.float32)
+                                (tot_inks,), dtype='float32')
                     # this is to store priors based on signature
                     safe_create(results, 'prior_signature',
-                                (tot_inks,), dtype=np.float32)
+                                (tot_inks,), dtype='float32')
                 if predict_novelty:
                     safe_create(results, 'novelty',
-                                (tot_inks, ), dtype=np.float32)
+                                (tot_inks, ), dtype='float32')
                     safe_create(results, 'outlier',
-                                (tot_inks, ), dtype=np.float32)
+                                (tot_inks, ), dtype='float32')
 
                 # predict signature 3 for universe molecules
                 with h5py.File(self.sign2_universe, "r") as features:
                     # reference prediction (based on no information)
                     nan_feat = np.full((1, features['x_test'].shape[1]),
-                                       np.nan, dtype=np.float32)
+                                       np.nan, dtype='float32')
                     nan_pred = siamese.predict(nan_feat)
                     # read input in chunks
                     for idx in tqdm(range(0, tot_inks, chunk_size),
@@ -2125,7 +2303,7 @@ class sign3(BaseSignature, DataSignature):
                 # create destination h5 dataset
                 tot_inks = features[src_h5_ds].shape[0]
                 preds_shape = (tot_inks, 128)
-                preds.create_dataset(dst_h5_ds, preds_shape, dtype=np.float32)
+                preds.create_dataset(dst_h5_ds, preds_shape, dtype='float32')
                 if 'keys' in features:
                     preds.create_dataset('keys', data=features['keys'])
                 # predict in chunks
@@ -2142,7 +2320,7 @@ def safe_create(h5file, *args, **kwargs):
 
 def mask_keep(idxs, x1_data):
     # we will fill an array of NaN with values we want to keep
-    x1_data_transf = np.zeros_like(x1_data, dtype=np.float32) * np.nan
+    x1_data_transf = np.zeros_like(x1_data, dtype='float32') * np.nan
     for idx in idxs:
         # copy column from original data
         col_slice = slice(idx * 128, (idx + 1) * 128)
@@ -2229,7 +2407,7 @@ def subsampling_probs(sign2_coverage, dataset_idx, trim_threshold=0.1,
         # frequency based probabilities
         p_nrs = freq_nrs / coverage.shape[0]
         # add minimum probability (corner cases where to use 1 or 2 datasets)
-        min_p_nr = np.full(max_nr + 1, min(p_nrs), dtype=np.float32)
+        min_p_nr = np.full(max_nr + 1, min(p_nrs), dtype='float32')
         for nr, p_nr in zip(nrs, p_nrs):
             min_p_nr[nr] = p_nr
         # but leave out too large nrs

@@ -24,8 +24,10 @@ import sys
 import os
 import pickle
 import logging
+
 import chemicalchecker
 from chemicalchecker import ChemicalChecker, Config
+
 logging.log(logging.DEBUG, 'chemicalchecker: {{}}'.format(
     chemicalchecker.__path__))
 logging.log(logging.DEBUG, 'CWD: {{}}'.format(os.getcwd()))
@@ -113,7 +115,7 @@ class CCFit(BaseTask):
             self.__log.warning('All dataset are already fitted.')
             self.mark_ready()
             return
-
+        
         # Preparing dataset_params
         # for each dataset we want to define a set of signature parameters
         # (i.e. sign_pars, used when loading the signature) and a set of
@@ -157,6 +159,7 @@ class CCFit(BaseTask):
         params["job_name"] = "CC_" + self.cctype.upper()
         params["elements"] = dataset_params
         params["wait"] = True
+        params["memory"] = 80
         params.update(self.hpc_kwargs)
 
         # prepare job command and submit job

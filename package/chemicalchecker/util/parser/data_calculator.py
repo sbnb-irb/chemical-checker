@@ -11,9 +11,8 @@ database where the table has the same name as functions defined here.
 import os
 import numpy as np
 
-from chemicalchecker.util import logged
+from chemicalchecker.util import logged, Config
 from chemicalchecker.util.decorator import timeout
-
 
 @logged
 class DataCalculator():
@@ -33,6 +32,7 @@ class DataCalculator():
     def morgan_fp_r2_2048(inchikey_inchi, chunks=1000, dense=True):
         try:
             from rdkit.Chem import AllChem as Chem
+            from rdkit.Chem import rdFingerprintGenerator
         except ImportError:
             raise ImportError("requires rdkit " +
                               "https://www.rdkit.org/")
@@ -52,11 +52,11 @@ class DataCalculator():
                 continue
             info = {}
             # print mol
-            fp = Chem.GetMorganFingerprintAsBitVect(
-                mol, radius, nBits=nBits, bitInfo=info)
+            #fp = Chem.GetMorganFingerprintAsBitVect( mol, radius, nBits=nBits, bitInfo=info)
+            mfpgen = rdFingerprintGenerator.GetMorganGenerator(radius=radius, fpSize=nBits)
+            fp = mfpgen.GetFingerprint(mol)
             if dense:
-                dense = ",".join("%d" % s for s in sorted(
-                    [x for x in fp.GetOnBits()]))
+                dense = ",".join( "%d" % s for s in sorted( [x for x in fp.GetOnBits()] ) )
                 result = {
                     "inchikey": ik,
                     "raw": dense
@@ -73,7 +73,7 @@ class DataCalculator():
         yield chunk
 
     @staticmethod
-    def e3fp_3conf_1024(inchikey_inchi, chunks=1000):
+    def e3fp_3conf_1024(inchikey_inchi, chunks=1000, cores=None):
         try:
             from rdkit.Chem import AllChem as Chem
             from rdkit.Chem import Descriptors, rdMolDescriptors
@@ -95,8 +95,7 @@ class DataCalculator():
                                fprint_params={}, save=False):
             mol = Chem.rdinchi.InchiToMol(inchi)[0]
 
-            if Descriptors.MolWt(mol) > 800 or \
-                    rdMolDescriptors.CalcNumRotatableBonds(mol) > 11:
+            if Descriptors.MolWt(mol) > 800 or rdMolDescriptors.CalcNumRotatableBonds(mol) > 11:
                 return None
 
             smiles = Chem.MolToSmiles(mol, isomericSmiles=True)
@@ -110,8 +109,7 @@ class DataCalculator():
             if k is None:
                 continue
             try:
-                fps = fprints_from_inchi(
-                    str(inchikey_inchi[k]), str(k), params[0], params[1])
+                fps = fprints_from_inchi( str(inchikey_inchi[k]), str(k), params[0], params[1])
             except Exception:
                 DataCalculator.__log.warning('Timeout inchikey: ' + k)
                 fps = None
@@ -133,10 +131,66 @@ class DataCalculator():
         yield chunk
 
     @staticmethod
+    def e3fp_3conf_1024_parallel(inchikey_inchi, chunks=1000, cores=4):
+        try:
+            from rdkit.Chem import AllChem as Chem
+            from rdkit.Chem import Descriptors, rdMolDescriptors
+            from python_utilities.parallel import Parallelizer
+        except ImportError:
+            raise ImportError("requires rdkit " +
+                              "https://www.rdkit.org/")
+        try:
+            from e3fp import pipeline
+        except ImportError:
+            raise ImportError("requires e3fp " +
+                              "https://github.com/keiserlab/e3fp")
+
+        root = os.path.dirname(os.path.realpath(__file__))
+
+        params = pipeline.params_to_dicts(root + "/data/defaults.cfg")
+
+        @timeout(100, use_signals=False)
+        def fprints_from_inchi(inchi, inchikey, confgen_params={}, fprint_params={}, save=False):
+            try:
+                result = None
+                if(inchi != None):
+                    mol = Chem.rdinchi.InchiToMol(inchi)[0]
+                    if(mol != None):
+                        if Descriptors.MolWt(mol) > 800 or rdMolDescriptors.CalcNumRotatableBonds(mol) > 11:
+                            result = None
+                        else:
+                            smiles = Chem.MolToSmiles(mol, isomericSmiles=True)
+                            result = pipeline.fprints_from_smiles( smiles, inchikey, confgen_params, fprint_params, save )
+            except Exception:
+                result = None
+            if not result:
+                result = {
+                    "inchikey": inchikey,
+                    "raw": result
+                }
+            else:
+                s = ",".join([str(x) for fp in result for x in fp.indices ])
+                result = {
+                    "inchikey": inchikey,
+                    "raw": result
+                }
+            return result
+        
+        kwargs = {"confgen_params": params[0], "fprint_params": params[1] }
+        parallelizer = Parallelizer(parallel_mode="processes", num_proc=cores)
+        items = inchikey_inchi.items()
+        for i in range(0, len(items), chunks):
+            part = items[i:i+chunks]
+            inchi_iter = ( (inchi, key) for key, inchi in part )
+            chunk = parallelizer.run(fprints_from_inchi, inchi_iter, kwargs=kwargs) 
+            yield chunk
+
+    @staticmethod
     def murcko_1024_cframe_1024(inchikey_inchi, chunks=1000):
         try:
             from rdkit.Chem import AllChem as Chem
             from rdkit.Chem.Scaffolds import MurckoScaffold
+            from rdkit.Chem import rdFingerprintGenerator
         except ImportError:
             raise ImportError("requires rdkit " +
                               "https://www.rdkit.org/")
@@ -151,10 +205,13 @@ class DataCalculator():
                 core = mol
             fw = MurckoScaffold.MakeScaffoldGeneric(core)
             info = {}
-            c_fp = Chem.GetMorganFingerprintAsBitVect(
-                core, radius, nBits=nBits, bitInfo=info).GetOnBits()
-            f_fp = Chem.GetMorganFingerprintAsBitVect(
-                fw, radius, nBits=nBits, bitInfo=info).GetOnBits()
+            mfpgen = rdFingerprintGenerator.GetMorganGenerator(radius=radius, fpSize=nBits)
+            c_fp = mfpgen.GetFingerprint( core ).GetOnBits()
+            f_fp = mfpgen.GetFingerprint( fw ).GetOnBits()
+            
+            #c_fp = Chem.GetMorganFingerprintAsBitVect( core, radius, nBits=nBits, bitInfo=info).GetOnBits()
+            #f_fp = Chem.GetMorganFingerprintAsBitVect( fw, radius, nBits=nBits, bitInfo=info).GetOnBits()
+            
             fp = ["c%d" % x for x in c_fp] + ["f%d" % y for y in f_fp]
             return ",".join(fp)
 
@@ -324,6 +381,7 @@ class DataCalculator():
         try:
             from rdkit.Chem import AllChem as Chem
             from rdkit import DataStructs
+            from rdkit.Chem import rdFingerprintGenerator
         except ImportError:
             raise ImportError("requires rdkit " +
                               "https://www.rdkit.org/")
@@ -331,18 +389,30 @@ class DataCalculator():
         import collections
         import numpy as np
         import pandas as pd
+        import glob
         from chemicalchecker.database import Datasource
         # Variables
         max_targets = 20
         min_targets = 1
         min_proba = 0.5
         # Paths
-        models_path = Datasource.get("chembl_target_predictions")[0].data_path
-        uniprot_mapping_path = Datasource.get(
-            "chembl_uniprot_mapping")[0].data_path
+        config = Config()
+        maindb = config.DB.database
+        models_path = Datasource.get("chembl_target_predictions", maindb)[0].data_path
+        uniprot_mapping_path = Datasource.get("chembl_uniprot_mapping", maindb)[0].data_path
+        
+        hint = models_path
+        res = glob.glob( hint+'/*', recursive=False)
+        flag = len(list( filter( lambda x: x.endswith('.pkl'), res))) == 0
+        while (flag) :
+            hint+='/*'
+            res = glob.glob( hint+'/*', recursive=False)
+            flag = ( len(list( filter( lambda x: x.endswith('.pkl'), res))) == 0 ) and ( len(res) > 0 )
+        fs = list( filter( lambda x: x.endswith('mNB_10uM_all.pkl'), res))[0]
+        
         # Load models
-        morgan_nb = joblib.load(
-            models_path + "/models_23/10uM/mNB_10uM_all.pkl")
+        #morgan_nb = joblib.load( models_path + "/models_23/10uM/mNB_10uM_all.pkl" )
+        morgan_nb = joblib.load( fs )
         classes = list(morgan_nb.targets)
         # Read target-to-uniprot mapping
         chembltarg2prot = collections.defaultdict(set)
@@ -356,15 +426,17 @@ class DataCalculator():
 
         def predict_targets(inchi):
             mol = Chem.rdinchi.InchiToMol(inchi)[0]
-            fp = Chem.GetMorganFingerprintAsBitVect(
-                mol, 2, nBits=2048, bitInfo={})
-            res = np.zeros(len(fp), np.int32)
+            mfpgen = rdFingerprintGenerator.GetMorganGenerator(radius=2, fpSize=2048)
+            fp = mfpgen.GetFingerprint( mol )
+            #fp = Chem.GetMorganFingerprintAsBitVect( mol, 2, nBits=2048, bitInfo={})
+            
+            res = np.zeros(len(fp), int )
             DataStructs.ConvertToNumpyArray(fp, res)
+            
             probas = list(morgan_nb.predict_proba(res.reshape(1, -1))[0])
-            predictions = pd.DataFrame(
-                zip(classes, probas), columns=['id', 'proba'])
-            top_preds = predictions.sort_values(
-                by='proba', ascending=False).head(max_targets)
+            predictions = pd.DataFrame( zip(classes, probas), columns=['id', 'proba'])
+            
+            top_preds = predictions.sort_values( by='proba', ascending=False ).head(max_targets)
             top_preds = top_preds[top_preds["proba"] >= min_proba]
             prots = []
             for r in np.array(top_preds):
@@ -375,6 +447,7 @@ class DataCalculator():
             if len(prots) < min_targets:
                 return None
             return prots
+            
         # Start iterating
         iks = inchikey_inchi.keys()
         chunk = list()

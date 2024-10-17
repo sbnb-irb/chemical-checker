@@ -278,8 +278,14 @@ def main():
 
     main._log.debug(
         "Running validation for dataset MOA. Saving output in " + args.output_file)
-
-    drugbank_xml = os.path.join(map_files["drugbank"], "full database.xml")
+    
+    file_path = map_files["drugbank"]
+    if( os.path.isdir(file_path) ):
+        fxml = ''
+        for fs in os.listdir(file_path) :
+            if( fs.endswith('.xml') ):
+                fxml = fs
+        drugbank_xml = os.path.join(file_path, fxml)
 
     main._log.info("Parsing ChEMBL")
     ACTS = parse_chembl()

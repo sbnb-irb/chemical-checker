@@ -108,13 +108,17 @@ then
     fi
     mkdir $INSTALL_DIR;
     cd $INSTALL_DIR;
-    SINGULARITY_DEFINITION="$LOCAL_REPO/container/singularity/cc_py39.def"
+    SINGULARITY_DEFINITION="$LOCAL_REPO/container/singularity/cc_py310.def"
     BINARIES_FOLDER="$LOCAL_REPO/container/singularity/binaries/"
-    SNAP_MAKEFILE="$LOCAL_REPO/container/snap_makefile.config"
+    #SNAP_MAKEFILE="$LOCAL_REPO/container/snap_makefile.config"
+    SNAP="$LOCAL_REPO/container/snap"
+    GENSIM="$LOCAL_REPO/container/gensim"
     cp $SINGULARITY_DEFINITION $INSTALL_DIR;  # Node2vec binary
     mkdir -p ./container/singularity/; 
-    cp -r $BINARIES_FOLDER ./container/singularity;   
-    cp -r $SNAP_MAKEFILE ./container/snap_makefile.config;    
+    cp -r $BINARIES_FOLDER ./container/singularity;  
+    cp -r $SNAP ./container/;    
+    cp -r $GENSIM ./container/;    
+    #cp -r $SNAP_MAKEFILE ./container/snap_makefile.config;    
 
     printf -- 'Removing old singularity image...\n';
     sudo rm -f $LOCAL_IMAGE;

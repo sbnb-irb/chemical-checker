@@ -209,7 +209,10 @@ class ApplicabilityPredictor(object):
         y = preds[:tt_split]
 
         bbox = dict(facecolor='white', edgecolor='none', pad=3.0, alpha=.7)
-        j = sns.jointplot(x=x[:limit], y=y[:limit],
+        dfplot = pd.DataFrame()
+        dfplot['x'] = x[:limit]
+        dfplot['y'] = y[:limit]
+        j = sns.jointplot( data=dfplot, x='x', y='y',
                           kind="reg", truncate=False,  color="red")
         metric = stats.pearsonr(x, y)[0]
         j.ax_joint.text(0.05, 0.9, 'pearson r: %.2f' % metric,
@@ -225,7 +228,10 @@ class ApplicabilityPredictor(object):
         if self.t_split < 1:
             x = self.applicability[tt_split:]
             y = preds[tt_split:]
-            j = sns.jointplot(x=x[:limit], y=y[:limit],
+            dfplot = pd.DataFrame()
+            dfplot['x'] = x[:limit]
+            dfplot['y'] = y[:limit]
+            j = sns.jointplot( data=dfplot, x='x', y='y',
                               kind="reg", truncate=False,  color="green")
             metric = stats.pearsonr(x, y)[0]
             j.ax_joint.text(0.05, 0.9, 'pearson r: %.2f' % metric,

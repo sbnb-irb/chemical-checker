@@ -70,7 +70,7 @@ class RNDuplicates():
                         "H5 file does not contain datasets 'keys' and 'V'")
                 data_size = dh5["V"].shape
                 if (data_size[0] < self.threshold and data_size[1] < self.threshold) or self.only_duplicates:
-                    self.data = np.array(dh5["V"][:], dtype=np.float32)
+                    self.data = np.array(dh5["V"][:], dtype=float)
                 else:
                     self.data = None
                     self.data_file = data
@@ -98,11 +98,11 @@ class RNDuplicates():
         if self.only_duplicates:
             indexl2 = faiss.IndexFlatL2(self.data.shape[1])
 
-            indexl2.add(self.data)
+            indexl2.add( np.array( self.data, dtype='float32' ) )
 
             self.__log.debug("Done adding in L2 space")
 
-            D, I = indexl2.search(self.data, 1000)
+            D, I = indexl2.search( np.array(self.data, dtype='float32'), 1000)
 
             self.__log.debug("Done searching in L2 space")
 
@@ -143,12 +143,12 @@ class RNDuplicates():
                 for start in starts:
 
                     indexlsh.add(
-                        np.array(dh5["V"][start:start + self.chunk], dtype=np.float32))
+                        np.array(dh5["V"][start:start + self.chunk], dtype='float32') )
                 dh5.close()
 
             else:
 
-                indexlsh.add(self.data)
+                indexlsh.add( np.array( self.data, dtype='float32' ) )
 
             indexes = faiss.vector_to_array(
                 indexlsh.codes).reshape(-1, int(indexlsh.nbits / 8))

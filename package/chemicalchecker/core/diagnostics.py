@@ -364,7 +364,7 @@ print('JOB DONE')
         params["elements"] = dataset_params
         params["wait"] = False
         params["check_error"] = False
-        params["memory"] = 5  # trial and error
+        params["memory"] = 30  # trial and error
         # job command
         singularity_image = cfg.PATH.SINGULARITY_IMAGE
         command = "SINGULARITYENV_PYTHONPATH={} SINGULARITYENV_CC_CONFIG={}" \
@@ -1006,8 +1006,8 @@ print('JOB DONE')
         neighs0_ = nn.kneighbors(V0)[1][:, 1:]
         # reindex
         keys_dict = dict((k, i) for i, k in enumerate(self.keys))
-        neighs0 = np.zeros(neighs0_.shape).astype(np.int)
-        neighs1 = np.zeros(neighs1_.shape).astype(np.int)
+        neighs0 = np.zeros(neighs0_.shape).astype(int)
+        neighs1 = np.zeros(neighs1_.shape).astype(int)
         rows = []
         for i in range(0, neighs0_.shape[0]):
             rows += [keys_dict[keys[i]]]
@@ -1439,6 +1439,7 @@ print('JOB DONE')
             lab_counts = [(k, v) for k, v in sorted(
                 lab_counts.items(), key=lambda item: -item[1])]
             return (labels, lab_counts, eps, n_clusters_, n_noise_)
+            
         best_score = 0
         best_n_neigh = None
         for n_neigh in n_neighbors:
@@ -1741,3 +1742,4 @@ print('JOB DONE')
                 fn_dest = os.path.join(dest_dir, fn)
             self.__log.debug("Saving plot to: %s" % fn_dest)
             fig.savefig(fn_dest, **savefig_kwargs)
+        return fig

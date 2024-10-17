@@ -3,6 +3,8 @@ import pytest
 import unittest
 import functools
 
+import sys
+sys.path.insert(0, '/aloy/home/ymartins/Documents/cc_update/chemical_checker/package/' )
 from chemicalchecker.util import Config
 
 
@@ -28,14 +30,13 @@ class TestPipeline(unittest.TestCase):
         if os.path.isdir(self.pipeline_dir):
             os.system("chmod -R 777 " + self.pipeline_dir)
             os.system("rm -rf " + self.pipeline_dir)
-        os.environ["CC_CONFIG"] = os.path.join(
-            self.data_dir, 'config.json')
+        os.environ["CC_CONFIG"] = os.path.join( self.data_dir, 'config.json')
 
     def tearDown(self):
         if os.path.isdir(self.pipeline_dir):
             os.system("chmod -R 777 " + self.pipeline_dir)
             os.system("rm -rf " + self.pipeline_dir)
-            # shutil.rmtree(self.pipeline_dir)
+        print('exited')
 
     @skip_if_import_exception
     def test_pipeline_fit_sign0(self):

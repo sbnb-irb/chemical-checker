@@ -18,17 +18,17 @@ build_singularity_image:
   script:
     - mkdir images -p
     - rm -f images/cc.simg
-    - singularity build images/cc.simg container/singularity/cc_py39.def
+    - singularity build images/cc.simg container/singularity/cc_py310.def
   cache:
     paths:
       - images
-  #artifacts:
-  #  paths:
-  #  - images/cc.simg
-  #  expire_in: 1 week
+  # artifacts:
+  #   paths:
+  #   - images/cc.simg
+  #   expire_in: 1 week
   only:
     changes:
-      - container/singularity/cc_py39.def
+      - container/singularity/cc_py310.def
   timeout: 6 hours
 
 build_singularity_image_lite:
@@ -36,17 +36,17 @@ build_singularity_image_lite:
   script:
     - mkdir images -p
     - rm -f images/cc_lite.simg
-    - singularity build images/cc_lite.simg container/singularity/cc_py39_lite.def
+    - singularity build images/cc_lite.simg container/singularity/cc_py310_lite.def
   cache:
     paths:
       - images
-  #artifacts:
-  #  paths:
-  #  - images/cc_lite.simg
-  #  expire_in: 1 week
+  # artifacts:
+  #   paths:
+  #   - images/cc_lite.simg
+  #   expire_in: 1 week
   only:
     changes:
-      - container/singularity/cc_py39_lite.def
+      - container/singularity/cc_py310_lite.def
 
 ################
 # unittest
@@ -109,3 +109,4 @@ pypi_publish:
     - twine upload --verbose dist/*
   only:
     - tags
+

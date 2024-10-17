@@ -106,7 +106,7 @@ class Default(BaseSignature, DataSignature):
         faiss.omp_set_num_threads(self.cpu)
 
         if os.path.isfile(signature.data_path):
-            self.data = np.float32(signature.data)
+            self.data = signature.data.astype('float32')
             self.data_type = signature.data_type
             self.keys = signature.keys
             mappings = signature.mappings
@@ -142,12 +142,12 @@ class Default(BaseSignature, DataSignature):
 
                 tsne = TSNE(n_jobs=self.cpu, perplexity=self.perplexity, angle=self.angle,
                             n_iter=1000, metric=self.metric)
-                Proj = tsne.fit_transform(kmeans.centroids.astype(np.float64))
+                Proj = tsne.fit_transform(kmeans.centroids.astype('float64'))
 
             if self.type == "mds":
 
                 mds = MDS(n_jobs=self.cpu)
-                Proj = mds.fit_transform(kmeans.centroids.astype(np.float64))
+                Proj = mds.fit_transform(kmeans.centroids.astype('np.float64'))
 
             X = Proj[:, 0]
             Y = Proj[:, 1]
@@ -185,9 +185,9 @@ class Default(BaseSignature, DataSignature):
 
                 norms = LA.norm(kmeans.centroids[final_indexes], axis=1)
 
-                index.add(kmeans.centroids[final_indexes] / norms[:, None])
+                index.add( np.array( kmeans.centroids[final_indexes] / norms[:, None], dtype='float32') )
             else:
-                index.add(kmeans.centroids[final_indexes])
+                index.add( np.array(kmeans.centroids[final_indexes], dtype='float32') )
 
             points_proj = {}
 
@@ -208,22 +208,22 @@ class Default(BaseSignature, DataSignature):
             if self.type == "tsne":
                 tsne = TSNE(n_jobs=self.cpu, perplexity=self.perplexity, angle=self.angle,
                             n_iter=1000, metric=self.metric)
-                final_Proj = tsne.fit_transform(self.data.astype(np.float64))
+                final_Proj = tsne.fit_transform(self.data.astype('float64'))
 
             if self.type == "mds":
 
                 mds = MDS(n_jobs=self.cpu)
-                final_Proj = mds.fit_transform(self.data.astype(np.float64))
+                final_Proj = mds.fit_transform(self.data.astype('float64'))
 
             if self.metric == "euclidean":
                 index = faiss.IndexFlatL2(self.data.shape[1])
-                index.add(self.data)
+                index.add( np.array( self.data, dtype='float32') )
             else:
                 index = faiss.IndexFlatIP(self.data.shape[1])
 
                 norms = LA.norm(self.data, axis=1)
 
-                index.add(self.data / norms[:, None])
+                index.add( np.array(self.data / norms[:, None], dtype='float32') )
 
             xlim, ylim = plot.projection_plot(final_Proj, bw=0.1, levels=10)
 
@@ -310,7 +310,7 @@ class Default(BaseSignature, DataSignature):
                 raise Exception(
                     "H5 file %s does not contain datasets 'keys' and 'V'"
                     % signature.data_path)
-            self.data = np.array(dh5["V"][:], dtype=np.float32)
+            self.data = np.array(dh5["V"][:], dtype='float32')
             self.data_type = dh5["V"].dtype
             self.keys = dh5["keys"][:]
             if "mappings" in dh5.keys():
@@ -369,18 +369,18 @@ class Default(BaseSignature, DataSignature):
 
             norms = LA.norm(data, axis=1)
 
-            D, I = index.search(data / norms[:, None], neigh)
+            D, I = index.search( np.array(data / norms[:, None], dtype='float32'), neigh)
 
             # Convert to [0,1]
             D = np.maximum(0.0, (1.0 + D) / 2.0)
 
         else:
 
-            D, I = index.search(data[np.array(random.sample(
-                range(0, data.shape[0]), 10))], index.ntotal)
+            D, I = index.search( np.array( data[np.array(random.sample(
+                range(0, data.shape[0]), 10))], dtype='float32'), index.ntotal)
             max_val = np.max(D)
 
-            D, I = index.search(data, neigh)
+            D, I = index.search( np.array(data, dtype='float32'), neigh)
 
             D[:, :] = np.maximum((max_val - D[:, :]) / max_val, 0)
 
