@@ -61,7 +61,7 @@ export SINGULARITY_BINDPATH="/aloy/home,/aloy/data,/aloy/scratch,/aloy/web_check
 #
 #
 
-#SBATCH -p spot_gpu
+#SBATCH -p irb_gpu_3090
 #SBATCH --nodelist=irbgcn01
 #SBATCH --gres=gpu:1
 #SBACTH -N 1
