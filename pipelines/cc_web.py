@@ -365,7 +365,7 @@ def main(args):
                                  op_args=[args.cc_root])
     pp.add_task(export_cc_s0123_task)
     
-    def linkNew_cc_current(cc_root, new_version): 
+    def linkNew_cc_current(cc_root, new_version, ftp_data): 
         cc = ChemicalChecker(args.cc_root)
         cc.add_sign_metadata()
         cc.add_model_metadata()
@@ -376,10 +376,18 @@ def main(args):
         
         os.system( 'unlink /aloy/web_checker/current' )
         os.system( f'ln -s /aloy/web_checker/package_cc/{ new_version } /aloy/web_checker/current' )
+        
+        folder = f"{ftp_data}/sign_links/"
+        if( not os.path.isdir(folder) ):
+            os.mkdir(folder)
+            
+        os.system( f'cp -Lr /aloy/web_checker/package_cc/{new_version}/sign_links/sign*full* {ftp_data}/sign_links/' )
+        os.system( f"tar -cvz -f {ftp_data}/sign_links.tar.gz {ftp_data}/sign_links" )
+        #os.system( f"rm -rf {ftp_data}/sign_links" )
 
     link_cc_current_task = PythonCallable(name="linkNew_cc_current",
                                  python_callable=linkNew_cc_current,
-                                 op_args= [ args.cc_root, args.new_web_db.replace('cc_web_', '') ] )
+                                 op_args= [ args.cc_root, args.new_web_db.replace('cc_web_', ''), '/aloy/web_checker/ftp_data' ] )
     pp.add_task( linkNew_cc_current_task )
 
     # TASK: Create json of similar molecules for explore page

@@ -357,7 +357,12 @@ class ChemicalChecker():
                     'problem reading file %s: %s' % (path, str(ex)))
         return molset_dataset_sign
 
-    def download_all_ftp_signatures(self, out_directory, type_sign='sign2'):
+    def download_all_sign_links(self, out_directory):
+        if( not os.path.isdir(out_directory) ):
+            os.mkdir(out_directory)
+        wget.download( f"https://chemicalchecker.com/api/db/getFile/root/sign_links.tar.gz", out=out_directory )
+    
+    def download_all_ftp_signatures(self, out_directory, type_sign='sign2', only_chemical = False):
         if( not os.path.isdir(out_directory) ):
             os.mkdir(out_directory)
             
@@ -365,6 +370,38 @@ class ChemicalChecker():
             if( type_sign in ['sign0', 'sign1', 'sign2', 'sign3'] ):
                 prefix = f"signature{ type_sign[-1] }"
                 spaces = ['A','B', 'C', 'D', 'E']
+                if( only_chemical ):
+                    spaces = ['A']
+                    
+                combinations = []
+                for s in spaces:
+                    for i in range(1, 6):
+                        combinations.append( s+str(i) )
+                
+                for c in tqdm(combinations):
+                    if( type_sign == 'sign3' ):
+                        wget.download( f"https://chemicalchecker.com/api/db/getFile/root/{ c }.h5", out=out_directory )
+                        os.system( f"mv {out_directory}/{ c }.h5 {out_directory}/{ c }_sign3.h5" )
+                    else:
+                        wget.download( f"https://chemicalchecker.com/api/db/getFile/{prefix}/{ c }_{ type_sign }.h5", out=out_directory )
+            else:
+                self.__log.warning(
+                        'Invalid signature option: %s. This function is compatible with sign0, sign1, sign2 and sign3' % ( type_sign ) )
+        else:
+            self.__log.warning(
+                        'Output directory does not exist: %s' % ( out_directory ) )
+
+    def download_all_ftp_signatures(self, out_directory, type_sign='sign2', only_chemical = False):
+        if( not os.path.isdir(out_directory) ):
+            os.mkdir(out_directory)
+            
+        if( os.path.isdir(out_directory) ):
+            if( type_sign in ['sign0', 'sign1', 'sign2', 'sign3'] ):
+                prefix = f"signature{ type_sign[-1] }"
+                spaces = ['A','B', 'C', 'D', 'E']
+                if( only_chemical ):
+                    spaces = ['A']
+                    
                 combinations = []
                 for s in spaces:
                     for i in range(1, 6):
