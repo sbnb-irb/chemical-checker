@@ -85,6 +85,7 @@ fi
 
 export SINGULARITYENV_LD_LIBRARY_PATH=$LD_LIBRARY_PATH
 export SINGULARITY_BINDPATH="/apps/easybuild"
+export SINGULARITY_BIND="/home/sbnb:/aloy/home,/data/sbnb/data:/aloy/data,/data/sbnb/scratch:/aloy/scratch,/data/sbnb/chemicalchecker:/aloy/web_checker,/data/sbnb/web_updates:/aloy/web_repository"
 
 %(command)s
 
