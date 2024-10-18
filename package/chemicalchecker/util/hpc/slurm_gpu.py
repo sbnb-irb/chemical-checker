@@ -62,13 +62,10 @@ export SINGULARITY_BINDPATH="/aloy/home,/aloy/data,/aloy/scratch,/aloy/web_check
 #
 
 #SBATCH -p spot_gpu
-#SBATCH --nodelist=irbgcn[02-06]
+#SBATCH --nodelist=irbgcn01
 #SBATCH --gres=gpu:1
 #SBACTH -N 1
 #SBATCH --time=10-00:00:00
-
-##SBATCH --qos=long
-
 
 # Options for sbatch
 %(options)s
@@ -80,14 +77,14 @@ source /etc/profile.d/z00-lmod.sh
 # CUDA drivers
 module load CUDA/11.7.0
 
-export SINGULARITYENV_LD_LIBRARY_PATH=$LD_LIBRARY_PATH
-export SINGULARITY_BINDPATH="/aloy/home,/aloy/data,/aloy/scratch,/aloy/web_checker,/apps/easybuild"
-
 # Loads default environment configuration
 if [[ -f $HOME/.bashrc ]]
 then
   source $HOME/.bashrc
 fi
+
+export SINGULARITYENV_LD_LIBRARY_PATH=$LD_LIBRARY_PATH
+export SINGULARITY_BINDPATH="/apps/easybuild"
 
 %(command)s
 
@@ -182,10 +179,6 @@ fi
         jobParams = ["#SBATCH -J " + self.job_name]
         jobParams.append("#SBATCH --chdir=" + self.jobdir)
         
-        self.__log.debug( f"memory : { membycore }" )
-        if( membycore != None ):
-            jobParams.append( f"#SBATCH --mem-per-cpu={ membycore }G" )
-
         # the right partition for SBNB
         if self.queue is not None:
             jobParams.append("#SBATCH -p " + self.queue)
@@ -212,6 +205,10 @@ fi
                                 "Set to the minimum of {}".format(cpu, min_cpu))
             cpu = min_cpu
         jobParams.append("#SBATCH --cpus-per-task=" + str(cpu))
+
+        self.__log.debug( f"memory : { membycore }" )
+        if( membycore != None ):
+            jobParams.append( f"#SBATCH --mem-per-cpu={ membycore }G" )
 
         if maxtime is not None:
             jobParams.append(
