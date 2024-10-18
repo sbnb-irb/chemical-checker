@@ -333,9 +333,10 @@ class BaseSignature(object):
         if not os.path.isdir(job_path):
             os.mkdir(job_path)
         # check cpus
+        cc_repo = os.path.join(cfg.PATH.CC_REPO, 'package')
         script_lines = [
             "import os, sys",
-            f"sys.path.append( '{ cfg.PATH.CC_REPO }' )",
+            f"sys.path.append( '{ cc_repo }/package' )",
             "from chemicalchecker import ChemicalChecker",
             "ChemicalChecker.set_verbosity('DEBUG')",
             "os.environ['OMP_NUM_THREADS'] = str(%s)" % hpc_args.get("cpu", 4),
@@ -377,7 +378,7 @@ class BaseSignature(object):
         command = "SINGULARITYENV_PYTHONPATH={} SINGULARITYENV_CC_CONFIG={}" +\
             " singularity exec {} python {} {}"
         command = command.format(
-            os.path.join(cfg.PATH.CC_REPO, 'package'), cc_config,
+            cc_repo, cc_config,
             singularity_image, script_name, pickle_file)
         # submit jobs
         cluster = HPC.from_config(hpc_cfg)
