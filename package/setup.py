@@ -16,9 +16,11 @@ requirements = [
     'paramiko',
     'scikit-learn',
     'csvsort',
-    'matplotlib<3.0',
+    'matplotlib',
     'seaborn',
     'tqdm',
+    'wget',
+    'munch'
 ]
 
 setup_requirements = ['pytest-runner']
