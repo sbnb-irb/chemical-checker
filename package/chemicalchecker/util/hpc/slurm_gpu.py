@@ -64,10 +64,15 @@ export SINGULARITY_BINDPATH="/aloy/home,/aloy/data,/aloy/scratch,/aloy/web_check
 #SBATCH -p spot_gpu
 #SBATCH --nodelist=irbgcn[02-06]
 #SBATCH --gres=gpu:1
-
+#SBACTH -N 1
 #SBATCH --time=10-00:00:00
 
 ##SBATCH --qos=long
+
+
+# Options for sbatch
+%(options)s
+# End of qsub options
 
 # paramiko is not loaded
 source /etc/profile.d/z00-lmod.sh
@@ -76,11 +81,7 @@ source /etc/profile.d/z00-lmod.sh
 module load CUDA/11.7.0
 
 export SINGULARITYENV_LD_LIBRARY_PATH=$LD_LIBRARY_PATH
-export SINGULARITY_BINDPATH="/aloy/home,/aloy/data,/aloy/scratch,/aloy/web_checker,/apps/easybuild/rocky-8.7/intel/icelake/software/CUDA"
-
-# Options for sbatch
-%(options)s
-# End of qsub options
+export SINGULARITY_BINDPATH="/aloy/home,/aloy/data,/aloy/scratch,/aloy/web_checker,/apps/easybuild"
 
 # Loads default environment configuration
 if [[ -f $HOME/.bashrc ]]
@@ -205,7 +206,7 @@ fi
         if gpu > 1:
             self.__log.warning("Number of requested GPUs {} is more than 1 "
                                 "Are you sure you are really parallelizing on multiple GPUs?".format(gpu))
-        jobParams.append("#SBATCH --gpus=" + str(gpu))
+        #jobParams.append("#SBATCH --gpus=" + str(gpu))
         if cpu < min_cpu:
             self.__log.warning("Number of requested CPUs {} is not enough. "
                                 "Set to the minimum of {}".format(cpu, min_cpu))
