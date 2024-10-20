@@ -1,8 +1,8 @@
 {
     
     "PATH": {
-        "CC_REPO": "'/aloy/scratch/ymartins/cc/tmp_folder/'",
-        "CC_TMP": "'/aloy/home/ymartins/Documents/cc_update/chemical_checker'",
+        "CC_REPO": "'/aloy/home/ymartins/Documents/cc_update/chemical_checker'",
+        "CC_TMP": "'/aloy/scratch/ymartins/cc/tmp_folder/'",
     },
     "TOOLS": {
         "node2vec_exec" : "'/opt/node2vec'",
