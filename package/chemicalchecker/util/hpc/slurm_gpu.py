@@ -71,20 +71,13 @@ export SINGULARITY_BINDPATH="/aloy/home,/aloy/data,/aloy/scratch,/aloy/web_check
 %(options)s
 # End of qsub options
 
-# paramiko is not loaded
-source /etc/profile.d/z00-lmod.sh
-
-# CUDA drivers
-module load CUDA/11.7.0
-
 # Loads default environment configuration
 if [[ -f $HOME/.bashrc ]]
 then
   source $HOME/.bashrc
 fi
 
-export SINGULARITYENV_LD_LIBRARY_PATH=$LD_LIBRARY_PATH
-export SINGULARITY_BINDPATH="/apps/easybuild"
+export SINGULARITYENV_LD_LIBRARY_PATH=/opt/miniconda3/pkgs/cudatoolkit-11.3.1-hb98b00a_13/lib:LD_LIBRARY_PATH
 export SINGULARITY_BIND="/home/sbnb:/aloy/home,/data/sbnb/data:/aloy/data,/data/sbnb/scratch:/aloy/scratch,/data/sbnb/chemicalchecker:/aloy/web_checker,/data/sbnb/web_updates:/aloy/web_repository"
 
 %(command)s
