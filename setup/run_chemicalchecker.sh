@@ -3,8 +3,8 @@
 LOCAL_CCREPO="$HOME/chemical_checker"
 LOCAL_IMAGE="$LOCAL_CCREPO/cc.simg"
 
-LOCAL_CCREPO="/home/ymartins/Documents/cc_update/chemical_checker"
-LOCAL_IMAGE="/aloy/home/ymartins/Documents/cc_update/cc_image/cc.simg"
+#LOCAL_CCREPO="/home/ymartins/Documents/cc_update/chemical_checker"
+#LOCAL_IMAGE="/aloy/home/ymartins/Documents/cc_update/cc_image/cc.simg"
 
 JUPYTER_DIR=$LOCAL_CCREPO/run_user_sing
 

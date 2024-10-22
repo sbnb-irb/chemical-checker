@@ -15,13 +15,6 @@ From: ubuntu:20.04
     #container/snap_makefile.config /opt/Makefile.config
 
 %post
-    # bind paths
-    mkdir -p /aloy
-    mkdir -p /aloy/home
-    mkdir -p /aloy/data
-    mkdir -p /aloy/scratch
-    mkdir -p /aloy/web_checker
-    mkdir -p /slgpfs
     
     # update apt
     apt update -y
