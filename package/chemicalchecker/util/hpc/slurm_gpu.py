@@ -88,6 +88,48 @@ export SINGULARITY_BIND="/home/sbnb:/aloy/home,/data/sbnb/data:/aloy/data,/data/
 #$ -S /bin/bash
 #$ -r yes
 """
+    templateScript = """\
+#!/bin/bash
+#
+#
+
+#SBATCH -p irb_gpu_3090
+#SBATCH --nodelist=irbgcn01
+#SBATCH --gres=gpu:1
+#SBACTH -N 1
+#SBATCH --time=10-00:00:00
+
+# Options for sbatch
+%(options)s
+# End of qsub options
+
+# Loads default environment configuration
+if [[ -f $HOME/.bashrc ]]
+then
+  source $HOME/.bashrc
+fi
+
+ml purge
+
+spack unload —all
+
+spack load cuda@11.3.0 /trdjcpf
+
+spack load cudnn@8.9.0.131-11 /l7k37je
+
+export SINGULARITYENV_LD_LIBRARY_PATH=$LD_LIBRARY_PATH
+export SINGULARITY_BINDPATH="/apps/spack/opt/spack"
+
+export SINGULARITY_BIND="/home/sbnb:/aloy/home,/data/sbnb/data:/aloy/data,/data/sbnb/scratch:/aloy/scratch,/data/sbnb/chemicalchecker:/aloy/web_checker,/data/sbnb/web_updates:/aloy/web_repository"
+
+%(command)s
+
+    """
+    
+    defaultOptions = """\
+#$ -S /bin/bash
+#$ -r yes
+"""
 
     def __init__(self, **kwargs):
         """Initialize a SLURM GPU instance."""

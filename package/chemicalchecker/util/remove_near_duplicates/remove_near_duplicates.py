@@ -208,7 +208,7 @@ class RNDuplicates():
                     self.data[np.array(self.final_ids)], dtype=self.data_type)
                 hf.create_dataset("V", data=V)
 
-            hf.create_dataset("shape", hf["V"].shape)
+            hf.create_dataset("shape", data=hf["V"].shape)
             hf.create_dataset("mappings",
                               data=np.array(list_maps,
                                             DataSignature.string_dtype()))

@@ -360,7 +360,7 @@ class ChemicalChecker():
     def download_all_sign_links(self, out_directory):
         if( not os.path.isdir(out_directory) ):
             os.mkdir(out_directory)
-        wget.download( "https://chemicalchecker.com/api/db/getFile/root/2024_02.tar.gz", out=out_directory )
+        wget.download( "https://chemicalchecker.com/api/db/getFile/root/sign_links.tar.gz", out=out_directory )
     
     def download_all_ftp_signatures(self, out_directory, type_sign='sign2', only_chemical = False):
         if( not os.path.isdir(out_directory) ):

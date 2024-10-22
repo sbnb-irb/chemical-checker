@@ -1,7 +1,7 @@
 {
     
     "PATH": {
-        "SINGULARITY_IMAGE": "/aloy/home/ymartins/cc_310.simg",
+        "SINGULARITY_IMAGE": "'/aloy/home/ymartins/cc_310.simg'",
         "CC_REPO": "'/aloy/home/ymartins/Documents/cc_update/chemical_checker'",
         "CC_TMP": "'/aloy/scratch/ymartins/cc/tmp_folder/'",
     },
