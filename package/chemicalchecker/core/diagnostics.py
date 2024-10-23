@@ -1515,9 +1515,13 @@ print('JOB DONE')
             **kwargs)
 
     # @safe_return(None)
-    def key_coverage(self, *args, datasets=None, exemplary=True,
-                     ref_cctype='sign1', molset='full', **kwargs):
+    def key_coverage(self, *args, datasets=None, exemplary=True, molset='full', **kwargs):
         self.__log.debug("Key coverages")
+        
+        ref_cctype = 'sign1'
+        if( self.sign.cctype == 'sign0' ):
+            ref_cctype = 'sign0'
+            
         fn = "key_coverage"
         if ref_cctype is None:
             ref_cctype = self.ref_cctype
