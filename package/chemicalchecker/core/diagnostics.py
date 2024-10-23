@@ -416,13 +416,17 @@ print('JOB DONE')
             **kwargs)
 
     # @safe_return(None)
-    def cross_coverage(self, dataset, *args, ref_cctype='sign1', molset="full",
+    def cross_coverage(self, dataset, *args, molset="full",
                        try_conn_layer=False, redo=False, **kwargs):
         """Intersection of coverages.
 
         Args:
             sign (signature): A CC signature object to check against.
         """
+        ref_cctype = 'sign1'
+        if( self.sign.cctype == 'sign0' ):
+            ref_cctype = 'sign0'
+            
         if ref_cctype is None:
             ref_cctype = self.ref_cctype
         qualified_name = '_'.join([dataset, ref_cctype, molset])
@@ -911,11 +915,15 @@ print('JOB DONE')
         return results
 
     # @safe_return(None)
-    def dimensions(self, *args, datasets=None, exemplary=True,
-                   ref_cctype='sign1', molset="full", **kwargs):
+    def dimensions(self, *args, datasets=None, exemplary=True, molset="full", **kwargs):
         """Get dimensions of the signature and compare to other signatures."""
         self.__log.debug("Dimensions")
         fn = "dimensions"
+        
+        ref_cctype = 'sign1'
+        if( self.sign.cctype == 'sign0' ):
+            ref_cctype = 'sign0'
+            
         if ref_cctype is None:
             ref_cctype = self.ref_cctype
         if self._todo(fn):
@@ -949,8 +957,7 @@ print('JOB DONE')
             **kwargs)
 
     # @safe_return(None)
-    def across_coverage(self, *args, datasets=None, exemplary=True,
-                        ref_cctype='sign1', **kwargs):
+    def across_coverage(self, *args, datasets=None, exemplary=True, **kwargs):
         """Check coverage against a collection of other CC signatures.
 
         Args:
@@ -965,6 +972,11 @@ print('JOB DONE')
         """
         self.__log.debug("Across coverage")
         fn = "across_coverage"
+        
+        ref_cctype = 'sign1'
+        if( self.sign.cctype == 'sign0' ):
+            ref_cctype = 'sign0'
+            
         if ref_cctype is None:
             ref_cctype = self.ref_cctype
         if self._todo(fn):
@@ -1614,7 +1626,7 @@ print('JOB DONE')
         return self.plotter.available()
 
     def canvas_small(self, title=None, skip_plots=[]):
-        shared_kw = dict(save=True, plot=False)
+        shared_kw = dict(save=True, plot=False, ref_cctype=self.ref_cctype )
         if "cosine_distances" not in skip_plots:
             self.cosine_distances(**shared_kw)
         if "euclidean_distances" not in skip_plots:
@@ -1637,7 +1649,7 @@ print('JOB DONE')
         return fig
 
     def canvas_medium(self, title=None, skip_plots=[]):
-        shared_kw = dict(save=True, plot=False)
+        shared_kw = dict(save=True, plot=False, ref_cctype=self.ref_cctype )
 
         if "cosine_distances" not in skip_plots:
             self.cosine_distances(**shared_kw)

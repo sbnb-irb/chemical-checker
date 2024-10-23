@@ -717,6 +717,11 @@ class ChemicalChecker():
         format_dict = dict(dataset_code=ds_fmt,
                            cctype=cctype_fmt, molset=molset_fmt)
 
+        metapath = os.path.join(custom_data_path, 'metadata.json.zip')
+        metadest = os.path.join(self.cc_root, 'metadata.json.zip')
+        if( os.path.isfile( metapath) ):
+            shutil.copyfile( metapath, metadest)
+            
         # get H5 files metadata
         files = glob(os.path.join(custom_data_path, "*.h5"))
         if len(files) == 0:
