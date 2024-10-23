@@ -1614,7 +1614,7 @@ print('JOB DONE')
         return self.plotter.available()
 
     def canvas_small(self, title=None, skip_plots=[]):
-        shared_kw = dict(save=True, plot=False)
+        shared_kw = dict(save=True, plot=False, ref_cctype=self.ref_cctype)
         if "cosine_distances" not in skip_plots:
             self.cosine_distances(**shared_kw)
         if "euclidean_distances" not in skip_plots:
@@ -1637,7 +1637,7 @@ print('JOB DONE')
         return fig
 
     def canvas_medium(self, title=None, skip_plots=[]):
-        shared_kw = dict(save=True, plot=False)
+        shared_kw = dict(save=True, plot=False, ref_cctype=self.ref_cctype)
 
         if "cosine_distances" not in skip_plots:
             self.cosine_distances(**shared_kw)
