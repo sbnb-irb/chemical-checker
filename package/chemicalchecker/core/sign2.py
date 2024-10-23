@@ -137,6 +137,7 @@ class sign2(BaseSignature, DataSignature):
             self.copy_from(sign1, "mappings")
         else:
             self.__log.warn("Cannot copy 'mappings' from sign1.")
+       
         sign2_plot = Plot(self.dataset, self.stats_path)
         sign2_plot.sign_feature_distribution_plot(self)
 
