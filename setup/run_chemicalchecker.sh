@@ -86,11 +86,11 @@ else
 fi
 
 # using external package or config or both?
-if [ "$EXTERNAL_CCREPO" = false ]
+if [ "$EXTERNAL_CCREPO" == false ]
 then
     PATH_CCREPO=/opt/chemical_checker/package/
 fi
-if [ "$EXTERNAL_CCCONFIG" = false ]
+if [ "$EXTERNAL_CCCONFIG" == false ]
 then
     PATH_CCCONFIG=/opt/chemical_checker/setup/cc_config.json
 fi
