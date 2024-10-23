@@ -106,7 +106,10 @@ class Plot():
                          dataset_code, plot_path)
         self.plot_path = plot_path
         if validation_path is None:
-            self.validation_path = Config().PATH.validation_path
+            try:
+                self.validation_path = Config().PATH.validation_path
+            except:
+                self.validation_path = ""
         else:
             self.validation_path = validation_path
         self.dataset_code = dataset_code
