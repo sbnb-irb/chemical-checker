@@ -424,8 +424,6 @@ print('JOB DONE')
             sign (signature): A CC signature object to check against.
         """
         ref_cctype = 'sign1'
-        if( self.sign.cctype == 'sign0' ):
-            ref_cctype = 'sign0'
             
         if ref_cctype is None:
             ref_cctype = self.ref_cctype
@@ -921,8 +919,6 @@ print('JOB DONE')
         fn = "dimensions"
         
         ref_cctype = 'sign1'
-        if( self.sign.cctype == 'sign0' ):
-            ref_cctype = 'sign0'
             
         if ref_cctype is None:
             ref_cctype = self.ref_cctype
@@ -974,8 +970,6 @@ print('JOB DONE')
         fn = "across_coverage"
         
         ref_cctype = 'sign1'
-        if( self.sign.cctype == 'sign0' ):
-            ref_cctype = 'sign0'
             
         if ref_cctype is None:
             ref_cctype = self.ref_cctype
@@ -1519,8 +1513,6 @@ print('JOB DONE')
         self.__log.debug("Key coverages")
         
         ref_cctype = 'sign1'
-        if( self.sign.cctype == 'sign0' ):
-            ref_cctype = 'sign0'
             
         fn = "key_coverage"
         if ref_cctype is None:
