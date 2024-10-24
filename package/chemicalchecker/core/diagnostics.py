@@ -28,7 +28,7 @@ from chemicalchecker.util.hpc import HPC
 class Diagnosis(object):
     """Diagnosis class."""
 
-    def __init__(self, sign, ref_cc=None, ref_cctype='sign0', save=True,
+    def __init__(self, sign, ref_cc=None, ref_cctype=None, save=True,
                  plot=True, overwrite=False, load=True, n=10000, seed=42,
                  cpu=4):
         """Initialize a Diagnosis instance.
@@ -49,6 +49,8 @@ class Diagnosis(object):
         self.seed = seed
         if ref_cc is None:
             ref_cc = sign.get_cc()
+        if ref_cctype is None:
+            ref_cctype = sign.cctype
         self.ref_cc = ref_cc
         self.save = save
         self.plot = plot
@@ -59,17 +61,7 @@ class Diagnosis(object):
         self.cpu = cpu
         self.memory = 5
         # check if reference CC has reference all cctype signatures
-        available_sign = ref_cc.report_available(
-            molset="full", signature=ref_cctype)
-        if len(available_sign["full"]) < 25:
-            self.__log.warning(
-                "Reference CC '%s' does not have enough '%s'" %
-                (ref_cc.name, ref_cctype))
-            if self.ref_cctype == 'sign0':
-                self.ref_cctype = 'sign2'
-            else:
-                self.ref_cctype = 'sign2'
-            self.__log.warning("Switching to `%s`" % self.ref_cctype)
+        
         # define current diag_path
         self.name = '%s_%s' % (ref_cc.name, self.ref_cctype)
         self.path = os.path.join(sign.diags_path, self.name)
@@ -1645,6 +1637,14 @@ print('JOB DONE')
         return fig
 
     def canvas_medium(self, title=None, skip_plots=[]):
+        available_sign = self.ref_cc.report_available(
+            molset="full", signature=self.ref_cctype)
+        if len(available_sign["full"]) < 25:
+            self.__log.warning(
+                "Reference CC '%s' does not have enough '%s'" %
+                (ref_cc.name, ref_cctype))
+            raise Exception("You do not have enough signatures computed for this cc type")
+            
         shared_kw = dict(save=True, plot=False, ref_cctype=self.ref_cctype )
 
         if "cosine_distances" not in skip_plots:
