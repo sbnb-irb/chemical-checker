@@ -1643,7 +1643,7 @@ print('JOB DONE')
             self.__log.warning(
                 "[ERROR] Reference CC '%s' does not have enough '%s'" %
                 (self.ref_cc.name, self.ref_cctype))
-            raise Exception("You do not have enough signatures computed for this cc type")
+            raise Exception("You do not have enough signatures for this cc type - Get them on https://chemicalchecker.com/downloads/root")
             
         shared_kw = dict(save=True, plot=False, ref_cctype=self.ref_cctype )
 
