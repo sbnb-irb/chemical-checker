@@ -74,8 +74,8 @@ def get_session(dbname=None):
 
 
 def test_connection(dbname=None):
-    engine = get_engine(dbname=dbname)
     try:
+        engine = get_engine(dbname=dbname)
         with engine.begin() as connection:
             connection.close()
         engine.dispose()
