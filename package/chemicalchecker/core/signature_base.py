@@ -336,7 +336,7 @@ class BaseSignature(object):
         cc_repo = os.path.join(cfg.PATH.CC_REPO, 'package')
         script_lines = [
             "import os, sys",
-            f"sys.path.append( '{ cc_repo }/package' )",
+            f"sys.path.append( '{ cc_repo }' )",
             "from chemicalchecker import ChemicalChecker",
             "ChemicalChecker.set_verbosity('DEBUG')",
             "os.environ['OMP_NUM_THREADS'] = str(%s)" % hpc_args.get("cpu", 4),
