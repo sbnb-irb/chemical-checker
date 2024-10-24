@@ -264,7 +264,7 @@ class sign3(BaseSignature, DataSignature):
             cc_ref = ChemicalChecker(ref_cc)
             
         # create CC instance to host signatures
-        cc_extra = ChemicalChecker(os.path.join(tmp_path, 'tmp_cc'))
+        cc_extra = ChemicalChecker(os.path.join(tmp_path, 'tmp_cc'), dbconnect=False)
         # for each calculated space
         for ds_id, ds in zip(calc_idx_chemical_spaces, calc_ds_names):
             print('Calculating ', ds)
