@@ -48,6 +48,8 @@ then
   source $HOME/.bashrc
 fi
 
+export SINGULARITY_BIND="/home/sbnb:/aloy/home,/data/sbnb/data:/aloy/data,/data/sbnb/scratch:/aloy/scratch,/data/sbnb/chemicalchecker:/aloy/web_checker,/data/sbnb/web_updates:/aloy/web_repository"
+
 %(command)s
 
     """
