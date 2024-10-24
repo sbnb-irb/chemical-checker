@@ -1641,8 +1641,8 @@ print('JOB DONE')
             molset="full", signature=self.ref_cctype)
         if len(available_sign["full"]) < 25:
             self.__log.warning(
-                "Reference CC '%s' does not have enough '%s'" %
-                (ref_cc.name, ref_cctype))
+                "[ERROR] Reference CC '%s' does not have enough '%s'" %
+                (self.ref_cc.name, self.ref_cctype))
             raise Exception("You do not have enough signatures computed for this cc type")
             
         shared_kw = dict(save=True, plot=False, ref_cctype=self.ref_cctype )
