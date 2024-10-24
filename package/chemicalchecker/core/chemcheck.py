@@ -110,10 +110,11 @@ class ChemicalChecker():
             datasets = []
             # Test connection to DB, the database is not necessarily present
             self.__log.debug("Testing DB connection.")
-            if dbconnect and test_connection():
-                for dataset in Dataset.get():
-                    ds = dataset.dataset_code
-                    datasets.append(ds)
+            if dbconnect: 
+                if test_connection():
+                    for dataset in Dataset.get():
+                        ds = dataset.dataset_code
+                        datasets.append(ds)
                     
             else:
                 for space in 'ABCDE':
