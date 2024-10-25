@@ -415,15 +415,18 @@ print('JOB DONE')
         Args:
             sign (signature): A CC signature object to check against.
         """
-        ref_cctype = 'sign1'
-            
+        
+        ref_cctype = kwargs.get('ref_cctype', None)
         if ref_cctype is None:
-            ref_cctype = self.ref_cctype
+            ref_cctype = 'sign1'
+        
         qualified_name = '_'.join([dataset, ref_cctype, molset])
         fn = os.path.join(self.path, "cross_coverage_%s" % qualified_name)
         if self._todo(fn) or redo:
             metadata = self.ref_cc.sign_metadata(
                 'keys', molset, dataset, ref_cctype)
+            self.__log.debug("--cross cov %s, %s, %s" % (molset, dataset, ref_cctype) )
+            
             if metadata is not None:
                 vs_keys = metadata
             my_keys = self.sign.keys
@@ -470,6 +473,7 @@ print('JOB DONE')
         fn = os.path.join(self.path, "cross_roc_%s" %
                           sign.qualified_name)
         if self._todo(fn) or redo:
+            self.__log.debug("--cross %s, %s" % (sign.dataset, sign.cctype) )
             r = self.cross_coverage(sign.dataset, ref_cctype=sign.cctype,
                                     molset=sign.molset,
                                     apply_mappings=apply_mappings,
@@ -1239,10 +1243,12 @@ print('JOB DONE')
         if ref_cctype is None:
             ref_cctype = self.ref_cctype
         if self._todo(fn) or redo:
+            print('here')
             datasets = self._select_datasets(datasets, exemplary)
             results = {}
             for ds in datasets:
                 sign = self.ref_cc.signature(ds, ref_cctype)
+                print( 'across', sign)
                 results[ds] = self.cross_roc(sign, save=False, redo=True,
                                              plot=False)
             if include_datasets and exemplary:

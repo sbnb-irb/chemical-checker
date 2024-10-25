@@ -182,6 +182,7 @@ class ChemicalChecker():
         """Return the metadata of the Chemical Checker."""
         if self._metadata is None:
             self._metadata = self._get_metadata()
+
         if key not in self._metadata:
             raise Exception("Key `%s` not found in metadata" % key)
         if molset in self._metadata[key]:
