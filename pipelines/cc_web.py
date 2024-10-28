@@ -377,20 +377,19 @@ def main(args):
         os.system( 'unlink /aloy/web_checker/current' )
         os.system( f'ln -s /aloy/web_checker/package_cc/{ new_version } /aloy/web_checker/current' )
         
-        """
+        
         folder = f"{ftp_data}/{new_version}/sign_links"
         if( not os.path.isdir(folder) ):
             os.mkdir(folder)
             
-        os.system( f'cp -Lr /aloy/web_checker/package_cc/{new_version}/sign_links/sign0*full* {ftp_data}/{new_version}/sign_links/' )
-        os.system( f'cp -Lr /aloy/web_checker/package_cc/{new_version}/sign_links/sign1*full* {ftp_data}/{new_version}/sign_links/' )
+        os.system( f'cp -Lr /aloy/web_checker/package_cc/{new_version}/sign_links/sign0_A*full*.h5 {ftp_data}/{new_version}/sign_links/' )
         os.system( f'cp -Lr /aloy/web_checker/package_cc/{new_version}/sign_links/sign1_A*reference* {ftp_data}/{new_version}/sign_links/' )
-        os.system( f'cp -Lr /aloy/web_checker/package_cc/{new_version}/sign_links/sign2*full* {ftp_data}/{new_version}/sign_links/' )
+        os.system( f'cp -Lr /aloy/web_checker/package_cc/{new_version}/sign_links/sign2*full*.h5 {ftp_data}/{new_version}/sign_links/' )
         os.system( f'cp -Lr /aloy/web_checker/package_cc/{new_version}/sign_links/sign2_A*reference* {ftp_data}/{new_version}/sign_links/' )
-        os.system( f'cp -Lr /aloy/web_checker/package_cc/{new_version}/sign_links/sign3*full* {ftp_data}/{new_version}/sign_links/' )
+        os.system( f'cp -Lr /aloy/web_checker/package_cc/{new_version}/sign_links/sign3*full*.h5 {ftp_data}/{new_version}/sign_links/' )
         os.system( f"tar -cvz -f {ftp_data}/{new_version}/sign_links.tar.gz {ftp_data}/{new_version}/sign_links" )
         #os.system( f"rm -rf {ftp_data}/sign_links" )
-        """
+        
 
     link_cc_current_task = PythonCallable(name="linkNew_cc_current",
                                  python_callable=linkNew_cc_current,
