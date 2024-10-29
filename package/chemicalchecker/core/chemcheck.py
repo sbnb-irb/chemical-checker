@@ -92,6 +92,7 @@ class ChemicalChecker():
         else:
             self.cc_root = os.path.realpath(cc_root)
 
+        self.db_access = dbconnect
         self._basic_molsets = ['reference', 'full']
         self._datasets = set()
         self._molsets = set(self._basic_molsets)
