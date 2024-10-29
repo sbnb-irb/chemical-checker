@@ -314,7 +314,7 @@ class Converter:
                     "InChIKey %s not found in dictionary, searching in external DBs..."
                     % inchikey
                 )
-
+                
         resolve_fns = {
             "unichem": Converter._resove_inchikey_unichem,
             "cactus": Converter._resove_inchikey_cactus,
@@ -322,6 +322,7 @@ class Converter:
         }
         inchi = None
         for provider, func in resolve_fns.items():
+            print(provider)
             try:
                 inchi = func(inchikey)
                 break

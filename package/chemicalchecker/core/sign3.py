@@ -457,7 +457,7 @@ class sign3(BaseSignature, DataSignature):
                 for ink in miss_ink:
                     try:
                         inchi = conv.inchikey_to_inchi(
-                            ink, local_db=dbconnect, mapping_dict=mapping_dict
+                            ink, local_db=dbconnect, save_local=dbconnect, mapping_dict=mapping_dict
                         )
                     except Exception as ex:
                         sign3.__log.warning(str(ex))
