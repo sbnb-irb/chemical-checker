@@ -368,7 +368,7 @@ class sign3(BaseSignature, DataSignature):
                                 calc_ds_idx=[0, 1, 2, 3, 4],
                                 calc_ds_names=['A1.001', 'A2.001', 'A3.001',
                                                'A4.001', 'A5.001'],
-                                ref_cc=None, exec_universe_in_parallel=False, cores=None):
+                                ref_cc=None, exec_universe_in_parallel=False, cores=None, dbconnect=True):
         """Completes the universe for extra molecules.
 
         Important if the dataset we are fitting is defined on molecules
@@ -438,7 +438,7 @@ class sign3(BaseSignature, DataSignature):
                 miss_count = 0
                 for ink in miss_ink:
                     try:
-                        inchi = conv.inchikey_to_inchi(ink)
+                        inchi = conv.inchikey_to_inchi(ink, local_db=dbconnect)
                     except Exception as ex:
                         sign3.__log.warning(str(ex))
                         continue
@@ -1923,7 +1923,7 @@ class sign3(BaseSignature, DataSignature):
             model_confidence=True, save_correlations=False,
             predict_novelty=False, update_preds=True,
             chunk_size=1000, suffix=None, plots_train=True,
-            triplets_sampler=None, hpc_args = {}, **kwargs):
+            triplets_sampler=None, dbconnect=True,  hpc_args = {}, **kwargs):
         """Fit signature 3 given a list of signature 2.
 
         Args:
@@ -1953,6 +1953,7 @@ class sign3(BaseSignature, DataSignature):
                                it applies to train_prior_model, 
                                train_prior_signature_model,
                                train_confidence_model
+            dbconnect: whether using local database or web services to map inchikeys
         """
         try:
             from chemicalchecker.tool.siamese import SiameseTriplets
@@ -2024,7 +2025,7 @@ class sign3(BaseSignature, DataSignature):
             res = self.complete_sign2_universe(
                 sign2_self, self.sign2_universe, self.sign2_coverage,
                 tmp_path=self.model_path, calc_ds_idx=calc_ds_idx,
-                calc_ds_names=calc_ds_names, exec_universe_in_parallel = exec_universe_in_parallel, cores = pcores)
+                calc_ds_names=calc_ds_names, exec_universe_in_parallel = exec_universe_in_parallel, cores = pcores, dbconnect=dbconnect)
             self.sign2_universe, self.sign2_coverage = res
 
         # check if performance evaluations need to be done
