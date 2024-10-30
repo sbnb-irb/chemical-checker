@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 __author__ = """SBNB"""
 __email__ = 'sbnb@irbbarcelona.org'
-__version__ = '1.0.4'
+__version__ = '1.0.5'
 
 requirements = [
     'numpy',
