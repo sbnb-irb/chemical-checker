@@ -228,11 +228,11 @@ class DataSignature(object):
     def features(self):
         """Get the list of features in the signature."""
         
-        replacement = np.array([i for i in range(0, self.shape[1])])
+        replacement = sorted( [ str(i) for i in range(0, self.shape[1])] )
         self._check_data()
         try:
             self._check_dataset('features')
-            features = self.features
+            features = self._get_all( "features" )
             mat_col_number = self.shape[1]
             if( len(features) > mat_col_number ):
                 return replacement
