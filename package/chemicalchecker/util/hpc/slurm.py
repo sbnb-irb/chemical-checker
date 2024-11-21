@@ -335,8 +335,7 @@ export SINGULARITY_BIND="/home/sbnb:/aloy/home,/data/sbnb/data:/aloy/data,/data/
                 cfg = ssh_config.lookup(self.host)
                 ssh = paramiko.SSHClient()
                 ssh.load_system_host_keys()
-                ssh.connect(cfg['hostname'], username=cfg[
-                            'user'], key_filename=cfg['identityfile'][0])
+                ssh.connect( self.host, **self.conn_params )
                 stdin, stdout, stderr = ssh.exec_command(
                     'squeue --job ' + self.job_id)
 
