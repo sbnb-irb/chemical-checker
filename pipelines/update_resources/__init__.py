@@ -1,1 +1,0 @@
-from .generate_chembl_files import generate_chembl_files
