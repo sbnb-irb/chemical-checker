@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>chemicalchecker.util.network.network module &mdash; chemicalchecker 1.0.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=fa44fd50" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=19f00094" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/logo.css?v=fc604eda" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/overrides.css?v=466af0f7" />
+
+  
+    <link rel="shortcut icon" href="../_static/favicon.ico"/>
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="../_static/documentation_options.js?v=8d563738"></script>
+        <script src="../_static/doctools.js?v=888ff710"></script>
+        <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html">
+            
+              <img src="../_static/logo.svg" class="logo" alt="Logo"/>
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../manifesto.html">Chemical Checker Manifesto</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../sources.html">Datasets</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../signaturization.html">Signaturization</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">chemicalchecker</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">chemicalchecker.util.network.network module</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/source/chemicalchecker.util.network.network.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="module-chemicalchecker.util.network.network">
+<span id="chemicalchecker-util-network-network-module"></span><h1>chemicalchecker.util.network.network module<a class="headerlink" href="#module-chemicalchecker.util.network.network" title="Link to this heading"></a></h1>
+<p>Network representations.</p>
+<p>Each class provides mean of accessing a network/graph.</p>
+<dl class="py class">
+<dt class="sig sig-object py" id="chemicalchecker.util.network.network.HotnetNetwork">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">HotnetNetwork</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">network</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/chemicalchecker/util/network/network.html#HotnetNetwork"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#chemicalchecker.util.network.network.HotnetNetwork" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>HotnetNetwork class.</p>
+<p>Network tools for hotnet.
+Read network and create files.</p>
+<p>Initialize a HotnetNetwork instance.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="chemicalchecker.util.network.network.HotnetNetwork.prepare">
+<em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">prepare</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">interactions</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">out_path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">hotnet</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">all_nodes</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/chemicalchecker/util/network/network.html#HotnetNetwork.prepare"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#chemicalchecker.util.network.network.HotnetNetwork.prepare" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="chemicalchecker.util.network.network.MultiEdgeNetwork">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">MultiEdgeNetwork</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">network</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/chemicalchecker/util/network/network.html#MultiEdgeNetwork"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#chemicalchecker.util.network.network.MultiEdgeNetwork" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>MultiEdgeNetwork class.</p>
+<p>Multimodal network representation with SNAP.
+Multiple type of node, Multiple type of edge.</p>
+<p>Initialize a MultiEdgeNetwork instance.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="chemicalchecker.util.network.network.MultiEdgeNetwork.edges">
+<span class="sig-name descname"><span class="pre">edges</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">edge_type</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">data</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/chemicalchecker/util/network/network.html#MultiEdgeNetwork.edges"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#chemicalchecker.util.network.network.MultiEdgeNetwork.edges" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="chemicalchecker.util.network.network.MultiEdgeNetwork.has_edge">
+<span class="sig-name descname"><span class="pre">has_edge</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">src</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dst</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">edge_type</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">node_type</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/chemicalchecker/util/network/network.html#MultiEdgeNetwork.has_edge"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#chemicalchecker.util.network.network.MultiEdgeNetwork.has_edge" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="chemicalchecker.util.network.network.MultiEdgeNetwork.neighbors">
+<span class="sig-name descname"><span class="pre">neighbors</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">nodeid</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">edge_type</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">node_type</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">data</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/chemicalchecker/util/network/network.html#MultiEdgeNetwork.neighbors"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#chemicalchecker.util.network.network.MultiEdgeNetwork.neighbors" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="chemicalchecker.util.network.network.MultiEdgeNetwork.nodes">
+<span class="sig-name descname"><span class="pre">nodes</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">node_type</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">data</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/chemicalchecker/util/network/network.html#MultiEdgeNetwork.nodes"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#chemicalchecker.util.network.network.MultiEdgeNetwork.nodes" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="chemicalchecker.util.network.network.MultiEdgeNetwork.out_degree">
+<span class="sig-name descname"><span class="pre">out_degree</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">nodeid</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">edge_type</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">node_type</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/chemicalchecker/util/network/network.html#MultiEdgeNetwork.out_degree"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#chemicalchecker.util.network.network.MultiEdgeNetwork.out_degree" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="chemicalchecker.util.network.network.MultiEdgeNetwork.print_edges">
+<span class="sig-name descname"><span class="pre">print_edges</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">edge_type</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/chemicalchecker/util/network/network.html#MultiEdgeNetwork.print_edges"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#chemicalchecker.util.network.network.MultiEdgeNetwork.print_edges" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="chemicalchecker.util.network.network.MultiEdgeNetwork.print_nodes">
+<span class="sig-name descname"><span class="pre">print_nodes</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">node_type</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/chemicalchecker/util/network/network.html#MultiEdgeNetwork.print_nodes"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#chemicalchecker.util.network.network.MultiEdgeNetwork.print_nodes" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="chemicalchecker.util.network.network.NetworkxNetwork">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">NetworkxNetwork</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">network</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/chemicalchecker/util/network/network.html#NetworkxNetwork"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#chemicalchecker.util.network.network.NetworkxNetwork" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>NetworkxNetwork class.</p>
+<p>Network representation with NetworkX.
+Simple but heavy in memory.
+Single type of node, single type of edge.</p>
+<p>Initialize a NetworkxNetwork instance.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="chemicalchecker.util.network.network.NetworkxNetwork.edges">
+<span class="sig-name descname"><span class="pre">edges</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/chemicalchecker/util/network/network.html#NetworkxNetwork.edges"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#chemicalchecker.util.network.network.NetworkxNetwork.edges" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="chemicalchecker.util.network.network.NetworkxNetwork.get_node">
+<span class="sig-name descname"><span class="pre">get_node</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">node</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/chemicalchecker/util/network/network.html#NetworkxNetwork.get_node"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#chemicalchecker.util.network.network.NetworkxNetwork.get_node" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="chemicalchecker.util.network.network.NetworkxNetwork.has_edge">
+<span class="sig-name descname"><span class="pre">has_edge</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">node</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">previous</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/chemicalchecker/util/network/network.html#NetworkxNetwork.has_edge"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#chemicalchecker.util.network.network.NetworkxNetwork.has_edge" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="chemicalchecker.util.network.network.NetworkxNetwork.neighbors">
+<span class="sig-name descname"><span class="pre">neighbors</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">node</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/chemicalchecker/util/network/network.html#NetworkxNetwork.neighbors"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#chemicalchecker.util.network.network.NetworkxNetwork.neighbors" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="chemicalchecker.util.network.network.NetworkxNetwork.nodes">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">nodes</span></span><a class="headerlink" href="#chemicalchecker.util.network.network.NetworkxNetwork.nodes" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="chemicalchecker.util.network.network.SNAPNetwork">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">SNAPNetwork</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">network</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/chemicalchecker/util/network/network.html#SNAPNetwork"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#chemicalchecker.util.network.network.SNAPNetwork" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>SNAPNetwork class.</p>
+<p>Network representation with SNAP.
+Single type of node, single type of edge.</p>
+<p>Initialize a SNAPNetwork instance.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="chemicalchecker.util.network.network.SNAPNetwork.edges">
+<span class="sig-name descname"><span class="pre">edges</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/chemicalchecker/util/network/network.html#SNAPNetwork.edges"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#chemicalchecker.util.network.network.SNAPNetwork.edges" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="chemicalchecker.util.network.network.SNAPNetwork.from_file">
+<em class="property"><span class="pre">classmethod</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">from_file</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">filename</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">delimiter</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'</span> <span class="pre">'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">read_weights</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/chemicalchecker/util/network/network.html#SNAPNetwork.from_file"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#chemicalchecker.util.network.network.SNAPNetwork.from_file" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="chemicalchecker.util.network.network.SNAPNetwork.has_edge">
+<span class="sig-name descname"><span class="pre">has_edge</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">src</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dst</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/chemicalchecker/util/network/network.html#SNAPNetwork.has_edge"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#chemicalchecker.util.network.network.SNAPNetwork.has_edge" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="chemicalchecker.util.network.network.SNAPNetwork.neighbors">
+<span class="sig-name descname"><span class="pre">neighbors</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">nodeid</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">data</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/chemicalchecker/util/network/network.html#SNAPNetwork.neighbors"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#chemicalchecker.util.network.network.SNAPNetwork.neighbors" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="chemicalchecker.util.network.network.SNAPNetwork.nodes">
+<span class="sig-name descname"><span class="pre">nodes</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/chemicalchecker/util/network/network.html#SNAPNetwork.nodes"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#chemicalchecker.util.network.network.SNAPNetwork.nodes" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="chemicalchecker.util.network.network.SNAPNetwork.out_degree">
+<span class="sig-name descname"><span class="pre">out_degree</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">nodeid</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/chemicalchecker/util/network/network.html#SNAPNetwork.out_degree"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#chemicalchecker.util.network.network.SNAPNetwork.out_degree" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="chemicalchecker.util.network.network.SNAPNetwork.print_edges">
+<span class="sig-name descname"><span class="pre">print_edges</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/chemicalchecker/util/network/network.html#SNAPNetwork.print_edges"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#chemicalchecker.util.network.network.SNAPNetwork.print_edges" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="chemicalchecker.util.network.network.SNAPNetwork.print_nodes">
+<span class="sig-name descname"><span class="pre">print_nodes</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/chemicalchecker/util/network/network.html#SNAPNetwork.print_nodes"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#chemicalchecker.util.network.network.SNAPNetwork.print_nodes" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="chemicalchecker.util.network.network.SNAPNetwork.save">
+<span class="sig-name descname"><span class="pre">save</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">filename</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/chemicalchecker/util/network/network.html#SNAPNetwork.save"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#chemicalchecker.util.network.network.SNAPNetwork.save" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="chemicalchecker.util.network.network.SNAPNetwork.stats_toJSON">
+<span class="sig-name descname"><span class="pre">stats_toJSON</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">filename</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/chemicalchecker/util/network/network.html#SNAPNetwork.stats_toJSON"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#chemicalchecker.util.network.network.SNAPNetwork.stats_toJSON" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</section>
+
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2020, SBNB.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>chemicalchecker.util.sanitize.sanitizer module &mdash; chemicalchecker 1.0.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=fa44fd50" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=19f00094" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/logo.css?v=fc604eda" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/overrides.css?v=466af0f7" />
+
+  
+    <link rel="shortcut icon" href="../_static/favicon.ico"/>
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="../_static/documentation_options.js?v=8d563738"></script>
+        <script src="../_static/doctools.js?v=888ff710"></script>
+        <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html">
+            
+              <img src="../_static/logo.svg" class="logo" alt="Logo"/>
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../manifesto.html">Chemical Checker Manifesto</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../sources.html">Datasets</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../signaturization.html">Signaturization</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">chemicalchecker</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">chemicalchecker.util.sanitize.sanitizer module</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/source/chemicalchecker.util.sanitize.sanitizer.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="module-chemicalchecker.util.sanitize.sanitizer">
+<span id="chemicalchecker-util-sanitize-sanitizer-module"></span><h1>chemicalchecker.util.sanitize.sanitizer module<a class="headerlink" href="#module-chemicalchecker.util.sanitize.sanitizer" title="Link to this heading"></a></h1>
+<p>Simple sanitization of input matrices.</p>
+<p>Garbage in, garbage out, before data can be used it needs to be cleaned.
+This includes:</p>
+<ul class="simple">
+<li><p>Removing seldomly occurring features (columns)</p></li>
+<li><p>Removing molecules with few data (rows)</p></li>
+<li><p>Handling missing data (NaNs or infs)</p></li>
+<li><p>Trimming less informative features if too many are provided</p></li>
+</ul>
+<dl class="py class">
+<dt class="sig sig-object py" id="chemicalchecker.util.sanitize.sanitizer.Sanitizer">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">Sanitizer</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">impute_missing</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">trim</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_features</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">10000</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">check_features</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_feature_abs</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">5</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_feature_freq</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.8</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">check_keys</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_keys_abs</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_keys_freq</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.8</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sample_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1000</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_categories</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">20</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">zero_as_missing</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">chunk_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">10000</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tmp_path</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/chemicalchecker/util/sanitize/sanitizer.html#Sanitizer"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#chemicalchecker.util.sanitize.sanitizer.Sanitizer" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>Sanitizer class.</p>
+<p>Initialize a Sanitizer instance.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>impute_missing</strong> (<em>bool</em>) – True if NaNs (and -inf/+inf) will be imputed.
+NaN will be median, -inf/+inf will be min/max of the column.</p></li>
+<li><p><strong>trim</strong> (<em>bool</em>) – Trim dataset to have a maximum number of features.</p></li>
+<li><p><strong>max_features</strong> (<em>int</em>) – Maximum number of features to keep
+(default=10000).</p></li>
+<li><p><strong>check_features</strong> (<em>bool</em>) – True if we want to drop features based on
+frequency arguments. For categorical data, 0 is considered as
+<cite>missing</cite>. For continuous, any non numerical value.</p></li>
+<li><p><strong>min_feature_abs</strong> (<em>int</em>) – Minimum number (counts) of occurrences
+of feature, column-wise. (default=5).</p></li>
+<li><p><strong>max_feature_freq</strong> (<em>float</em>) – Maximum proportion of occurrences of
+the feature, column-wise. (default=0.8).</p></li>
+<li><p><strong>check_keys</strong> (<em>bool</em>) – True if we want to drop keys based on
+frequency arguments. For categorical data, 0 is considered as
+<cite>missing</cite>. For continuous, any non numerical value.</p></li>
+<li><p><strong>min_key_abs</strong> (<em>int</em>) – Minimum number (counts) of occurrences
+of feature, row-wise. (default=1).</p></li>
+<li><p><strong>max_keys_freq</strong> (<em>float</em>) – Maximum proportion of occurrences of
+the feature, row-wise. (default=0.8).</p></li>
+<li><p><strong>sample_size</strong> (<em>int</em>) – rows used for determining data type.</p></li>
+<li><p><strong>max_categories</strong> (<em>int</em>) – Maximum number of categories we can expect.</p></li>
+<li><p><strong>zero_as_missing</strong> (<em>bool</em>) – Only applyied to categorical data (usually)
+binary where the 0 denotes a missing information. Used when
+filtering row or columns by frequency.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="chemicalchecker.util.sanitize.sanitizer.Sanitizer.transform">
+<span class="sig-name descname"><span class="pre">transform</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">V</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">keys</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">keys_raw</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">features</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sign</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/chemicalchecker/util/sanitize/sanitizer.html#Sanitizer.transform"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#chemicalchecker.util.sanitize.sanitizer.Sanitizer.transform" title="Link to this definition"></a></dt>
+<dd><p>Sanitize data</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>data</strong> (<em>str</em>) – Path to a H5 or a DataSignature (default=None).</p></li>
+<li><p><strong>V</strong> (<em>matrix</em>) – Input matrix (default=None).</p></li>
+<li><p><strong>keys</strong> (<em>array</em>) – Keys (default=None).</p></li>
+<li><p><strong>keys_raw</strong> (<em>array</em>) – Keys raw (default=None).</p></li>
+<li><p><strong>features</strong> (<em>array</em>) – Features (default=None).</p></li>
+<li><p><strong>sign</strong> (<a class="reference internal" href="chemicalchecker.core.signature_data.html#chemicalchecker.core.signature_data.DataSignature" title="chemicalchecker.core.signature_data.DataSignature"><em>DataSignature</em></a>) – Auxiliary data used to impute (default=None).</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2020, SBNB.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

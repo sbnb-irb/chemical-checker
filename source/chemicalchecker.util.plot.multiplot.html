@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>chemicalchecker.util.plot.multiplot module &mdash; chemicalchecker 1.0.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=fa44fd50" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=19f00094" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/logo.css?v=fc604eda" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/overrides.css?v=466af0f7" />
+
+  
+    <link rel="shortcut icon" href="../_static/favicon.ico"/>
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="../_static/documentation_options.js?v=8d563738"></script>
+        <script src="../_static/doctools.js?v=888ff710"></script>
+        <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html">
+            
+              <img src="../_static/logo.svg" class="logo" alt="Logo"/>
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../manifesto.html">Chemical Checker Manifesto</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../sources.html">Datasets</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../signaturization.html">Signaturization</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">chemicalchecker</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">chemicalchecker.util.plot.multiplot module</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/source/chemicalchecker.util.plot.multiplot.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="module-chemicalchecker.util.plot.multiplot">
+<span id="chemicalchecker-util-plot-multiplot-module"></span><h1>chemicalchecker.util.plot.multiplot module<a class="headerlink" href="#module-chemicalchecker.util.plot.multiplot" title="Link to this heading"></a></h1>
+<p>Plot information on multiple Chemical Checker datasets.</p>
+<dl class="py class">
+<dt class="sig sig-object py" id="chemicalchecker.util.plot.multiplot.MultiPlot">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">MultiPlot</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">chemchecker</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">plot_path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">limit_dataset</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">svg</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dpi</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">200</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">grey</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">style</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/chemicalchecker/util/plot/multiplot.html#MultiPlot"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#chemicalchecker.util.plot.multiplot.MultiPlot" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>MultiPlot class.</p>
+<p>Produce Chemical Checker plots using multiple datasets.</p>
+<p>Initialize a MultiPlot instance.</p>
+<p>Produce plots integrating data from multiple datasets.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>chemchecker</strong> (<em>str</em>) – A Chemical Checker instance.</p></li>
+<li><p><strong>plot_path</strong> (<em>str</em>) – Destination folder for plot images.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="chemicalchecker.util.plot.multiplot.MultiPlot.all_sign_validations">
+<span class="sig-name descname"><span class="pre">all_sign_validations</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sign_types</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">molsets</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">valset</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'moa'</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/chemicalchecker/util/plot/multiplot.html#MultiPlot.all_sign_validations"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#chemicalchecker.util.plot.multiplot.MultiPlot.all_sign_validations" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="chemicalchecker.util.plot.multiplot.MultiPlot.cc_colors">
+<span class="sig-name descname"><span class="pre">cc_colors</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">coord</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">lighness</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/chemicalchecker/util/plot/multiplot.html#MultiPlot.cc_colors"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#chemicalchecker.util.plot.multiplot.MultiPlot.cc_colors" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="chemicalchecker.util.plot.multiplot.MultiPlot.cc_palette">
+<span class="sig-name descname"><span class="pre">cc_palette</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">coords</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/chemicalchecker/util/plot/multiplot.html#MultiPlot.cc_palette"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#chemicalchecker.util.plot.multiplot.MultiPlot.cc_palette" title="Link to this definition"></a></dt>
+<dd><p>Return a list of colors a.k.a. a palette.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="chemicalchecker.util.plot.multiplot.MultiPlot.cctype_CCA">
+<span class="sig-name descname"><span class="pre">cctype_CCA</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">cctype1</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'sign4'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cctype2</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'sign1'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">limit</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">10000</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/chemicalchecker/util/plot/multiplot.html#MultiPlot.cctype_CCA"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#chemicalchecker.util.plot.multiplot.MultiPlot.cctype_CCA" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="chemicalchecker.util.plot.multiplot.MultiPlot.cctype_similarity_search">
+<span class="sig-name descname"><span class="pre">cctype_similarity_search</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">cctype</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'sign4'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cctype_ref</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'sign1'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">limit</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">10000</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">limit_neig</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">50000</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sign_cap</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">200000</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/chemicalchecker/util/plot/multiplot.html#MultiPlot.cctype_similarity_search"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#chemicalchecker.util.plot.multiplot.MultiPlot.cctype_similarity_search" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="chemicalchecker.util.plot.multiplot.MultiPlot.cctype_validation_comparison">
+<span class="sig-name descname"><span class="pre">cctype_validation_comparison</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">cctype1</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'sign4'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cctype2</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'sign2'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">valtype</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'moa'</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/chemicalchecker/util/plot/multiplot.html#MultiPlot.cctype_validation_comparison"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#chemicalchecker.util.plot.multiplot.MultiPlot.cctype_validation_comparison" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="chemicalchecker.util.plot.multiplot.MultiPlot.cmap_discretize">
+<span class="sig-name descname"><span class="pre">cmap_discretize</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">N</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/chemicalchecker/util/plot/multiplot.html#MultiPlot.cmap_discretize"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#chemicalchecker.util.plot.multiplot.MultiPlot.cmap_discretize" title="Link to this definition"></a></dt>
+<dd><p>Return a discrete colormap from the continuous colormap cmap.</p>
+<blockquote>
+<div><p>cmap: colormap instance, eg. cm.jet.
+N: number of colors.</p>
+</div></blockquote>
+<dl class="simple">
+<dt>Example</dt><dd><p>x = resize(arange(100), (5,100))
+djet = cmap_discretize(cm.jet, 5)
+imshow(x, cmap=djet)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="chemicalchecker.util.plot.multiplot.MultiPlot.diagnosis_confidences_projection">
+<span class="sig-name descname"><span class="pre">diagnosis_confidences_projection</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">cctype</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/chemicalchecker/util/plot/multiplot.html#MultiPlot.diagnosis_confidences_projection"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#chemicalchecker.util.plot.multiplot.MultiPlot.diagnosis_confidences_projection" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="chemicalchecker.util.plot.multiplot.MultiPlot.diagnosis_euclidean_distances">
+<span class="sig-name descname"><span class="pre">diagnosis_euclidean_distances</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">cctype</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/chemicalchecker/util/plot/multiplot.html#MultiPlot.diagnosis_euclidean_distances"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#chemicalchecker.util.plot.multiplot.MultiPlot.diagnosis_euclidean_distances" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="chemicalchecker.util.plot.multiplot.MultiPlot.diagnosis_projections">
+<span class="sig-name descname"><span class="pre">diagnosis_projections</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">cctype</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/chemicalchecker/util/plot/multiplot.html#MultiPlot.diagnosis_projections"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#chemicalchecker.util.plot.multiplot.MultiPlot.diagnosis_projections" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="chemicalchecker.util.plot.multiplot.MultiPlot.plot_adanet_subnetwork_layer_size">
+<span class="sig-name descname"><span class="pre">plot_adanet_subnetwork_layer_size</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">shapes</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">func</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/chemicalchecker/util/plot/multiplot.html#MultiPlot.plot_adanet_subnetwork_layer_size"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#chemicalchecker.util.plot.multiplot.MultiPlot.plot_adanet_subnetwork_layer_size" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="chemicalchecker.util.plot.multiplot.MultiPlot.quick_gaussian_kde">
+<em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">quick_gaussian_kde</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">x</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">y</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">limit</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1000</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/chemicalchecker/util/plot/multiplot.html#MultiPlot.quick_gaussian_kde"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#chemicalchecker.util.plot.multiplot.MultiPlot.quick_gaussian_kde" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="chemicalchecker.util.plot.multiplot.MultiPlot.sign2_grid_search_node2vec_plot">
+<span class="sig-name descname"><span class="pre">sign2_grid_search_node2vec_plot</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">grid_postfix</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/chemicalchecker/util/plot/multiplot.html#MultiPlot.sign2_grid_search_node2vec_plot"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#chemicalchecker.util.plot.multiplot.MultiPlot.sign2_grid_search_node2vec_plot" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="chemicalchecker.util.plot.multiplot.MultiPlot.sign2_grid_search_plot">
+<span class="sig-name descname"><span class="pre">sign2_grid_search_plot</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">grid_postfix</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/chemicalchecker/util/plot/multiplot.html#MultiPlot.sign2_grid_search_plot"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#chemicalchecker.util.plot.multiplot.MultiPlot.sign2_grid_search_plot" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="chemicalchecker.util.plot.multiplot.MultiPlot.sign2_node2vec_stats">
+<span class="sig-name descname"><span class="pre">sign2_node2vec_stats</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/chemicalchecker/util/plot/multiplot.html#MultiPlot.sign2_node2vec_stats"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#chemicalchecker.util.plot.multiplot.MultiPlot.sign2_node2vec_stats" title="Link to this definition"></a></dt>
+<dd><p>Plot the stats for sign2.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="chemicalchecker.util.plot.multiplot.MultiPlot.sign3_adanet_performance_all_plot">
+<span class="sig-name descname"><span class="pre">sign3_adanet_performance_all_plot</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">metric</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'pearson'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">suffix</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">stat_filename</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'stats_eval.pkl'</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/chemicalchecker/util/plot/multiplot.html#MultiPlot.sign3_adanet_performance_all_plot"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#chemicalchecker.util.plot.multiplot.MultiPlot.sign3_adanet_performance_all_plot" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="chemicalchecker.util.plot.multiplot.MultiPlot.sign3_adanet_performance_overall">
+<span class="sig-name descname"><span class="pre">sign3_adanet_performance_overall</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">metric</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'pearson'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">suffix</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">not_self</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/chemicalchecker/util/plot/multiplot.html#MultiPlot.sign3_adanet_performance_overall"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#chemicalchecker.util.plot.multiplot.MultiPlot.sign3_adanet_performance_overall" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="chemicalchecker.util.plot.multiplot.MultiPlot.sign3_adanet_performance_overall_heatmap">
+<span class="sig-name descname"><span class="pre">sign3_adanet_performance_overall_heatmap</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">metric</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'pearson'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">split</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'test'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">suffix</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">not_self</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/chemicalchecker/util/plot/multiplot.html#MultiPlot.sign3_adanet_performance_overall_heatmap"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#chemicalchecker.util.plot.multiplot.MultiPlot.sign3_adanet_performance_overall_heatmap" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="chemicalchecker.util.plot.multiplot.MultiPlot.sign3_all_crossfit_plot">
+<span class="sig-name descname"><span class="pre">sign3_all_crossfit_plot</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">crossfit_dir</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/chemicalchecker/util/plot/multiplot.html#MultiPlot.sign3_all_crossfit_plot"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#chemicalchecker.util.plot.multiplot.MultiPlot.sign3_all_crossfit_plot" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="chemicalchecker.util.plot.multiplot.MultiPlot.sign3_confidence_distribution">
+<span class="sig-name descname"><span class="pre">sign3_confidence_distribution</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/chemicalchecker/util/plot/multiplot.html#MultiPlot.sign3_confidence_distribution"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#chemicalchecker.util.plot.multiplot.MultiPlot.sign3_confidence_distribution" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="chemicalchecker.util.plot.multiplot.MultiPlot.sign3_confidence_summary">
+<span class="sig-name descname"><span class="pre">sign3_confidence_summary</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">limit</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">5000</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/chemicalchecker/util/plot/multiplot.html#MultiPlot.sign3_confidence_summary"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#chemicalchecker.util.plot.multiplot.MultiPlot.sign3_confidence_summary" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="chemicalchecker.util.plot.multiplot.MultiPlot.sign3_correlation_distribution">
+<span class="sig-name descname"><span class="pre">sign3_correlation_distribution</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/chemicalchecker/util/plot/multiplot.html#MultiPlot.sign3_correlation_distribution"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#chemicalchecker.util.plot.multiplot.MultiPlot.sign3_correlation_distribution" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="chemicalchecker.util.plot.multiplot.MultiPlot.sign3_coverage_barplot">
+<span class="sig-name descname"><span class="pre">sign3_coverage_barplot</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sign2_coverage</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/chemicalchecker/util/plot/multiplot.html#MultiPlot.sign3_coverage_barplot"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#chemicalchecker.util.plot.multiplot.MultiPlot.sign3_coverage_barplot" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="chemicalchecker.util.plot.multiplot.MultiPlot.sign3_coverage_heatmap">
+<span class="sig-name descname"><span class="pre">sign3_coverage_heatmap</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sign2_coverage</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/chemicalchecker/util/plot/multiplot.html#MultiPlot.sign3_coverage_heatmap"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#chemicalchecker.util.plot.multiplot.MultiPlot.sign3_coverage_heatmap" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="chemicalchecker.util.plot.multiplot.MultiPlot.sign3_error_predictors">
+<span class="sig-name descname"><span class="pre">sign3_error_predictors</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sign2_universe_presence</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/chemicalchecker/util/plot/multiplot.html#MultiPlot.sign3_error_predictors"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#chemicalchecker.util.plot.multiplot.MultiPlot.sign3_error_predictors" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="chemicalchecker.util.plot.multiplot.MultiPlot.sign3_examplary_test_correlation">
+<span class="sig-name descname"><span class="pre">sign3_examplary_test_correlation</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">limit</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1000</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">molecules</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">['MBUVEWMHONZEQD-UHFFFAOYSA-N']</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">examplary_ds</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">['B1.001',</span> <span class="pre">'D1.001',</span> <span class="pre">'E4.001']</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/chemicalchecker/util/plot/multiplot.html#MultiPlot.sign3_examplary_test_correlation"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#chemicalchecker.util.plot.multiplot.MultiPlot.sign3_examplary_test_correlation" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="chemicalchecker.util.plot.multiplot.MultiPlot.sign3_grid_search_plot">
+<span class="sig-name descname"><span class="pre">sign3_grid_search_plot</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">grid_roots</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/chemicalchecker/util/plot/multiplot.html#MultiPlot.sign3_grid_search_plot"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#chemicalchecker.util.plot.multiplot.MultiPlot.sign3_grid_search_plot" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="chemicalchecker.util.plot.multiplot.MultiPlot.sign3_mfp_confidence_predictor">
+<span class="sig-name descname"><span class="pre">sign3_mfp_confidence_predictor</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/chemicalchecker/util/plot/multiplot.html#MultiPlot.sign3_mfp_confidence_predictor"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#chemicalchecker.util.plot.multiplot.MultiPlot.sign3_mfp_confidence_predictor" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="chemicalchecker.util.plot.multiplot.MultiPlot.sign3_mfp_predictor">
+<span class="sig-name descname"><span class="pre">sign3_mfp_predictor</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/chemicalchecker/util/plot/multiplot.html#MultiPlot.sign3_mfp_predictor"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#chemicalchecker.util.plot.multiplot.MultiPlot.sign3_mfp_predictor" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="chemicalchecker.util.plot.multiplot.MultiPlot.sign3_neig2_jaccard">
+<span class="sig-name descname"><span class="pre">sign3_neig2_jaccard</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">limit</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">2000</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/chemicalchecker/util/plot/multiplot.html#MultiPlot.sign3_neig2_jaccard"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#chemicalchecker.util.plot.multiplot.MultiPlot.sign3_neig2_jaccard" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="chemicalchecker.util.plot.multiplot.MultiPlot.sign3_novel_confidence_distribution">
+<span class="sig-name descname"><span class="pre">sign3_novel_confidence_distribution</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/chemicalchecker/util/plot/multiplot.html#MultiPlot.sign3_novel_confidence_distribution"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#chemicalchecker.util.plot.multiplot.MultiPlot.sign3_novel_confidence_distribution" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="chemicalchecker.util.plot.multiplot.MultiPlot.sign3_test_distribution">
+<span class="sig-name descname"><span class="pre">sign3_test_distribution</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">cctype</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'sign4'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">limit</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">10000</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">options</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">[['Pearson'],</span> <span class="pre">[True],</span> <span class="pre">[False]]</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/chemicalchecker/util/plot/multiplot.html#MultiPlot.sign3_test_distribution"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#chemicalchecker.util.plot.multiplot.MultiPlot.sign3_test_distribution" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="chemicalchecker.util.plot.multiplot.MultiPlot.sign3_test_error_distribution">
+<span class="sig-name descname"><span class="pre">sign3_test_error_distribution</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/chemicalchecker/util/plot/multiplot.html#MultiPlot.sign3_test_error_distribution"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#chemicalchecker.util.plot.multiplot.MultiPlot.sign3_test_error_distribution" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="chemicalchecker.util.plot.multiplot.MultiPlot.sign_adanet_stats">
+<span class="sig-name descname"><span class="pre">sign_adanet_stats</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ctype</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">metric</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">compare</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/chemicalchecker/util/plot/multiplot.html#MultiPlot.sign_adanet_stats"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#chemicalchecker.util.plot.multiplot.MultiPlot.sign_adanet_stats" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="chemicalchecker.util.plot.multiplot.MultiPlot.sign_feature_distribution_plot">
+<span class="sig-name descname"><span class="pre">sign_feature_distribution_plot</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">cctype</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">molset</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">block_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1000</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">block_nr</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">10</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sort</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/chemicalchecker/util/plot/multiplot.html#MultiPlot.sign_feature_distribution_plot"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#chemicalchecker.util.plot.multiplot.MultiPlot.sign_feature_distribution_plot" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="chemicalchecker.util.plot.multiplot.MultiPlot.sign_property_distribution">
+<span class="sig-name descname"><span class="pre">sign_property_distribution</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">cctype</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">molset</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">prop</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">xlim</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ylim</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">known_delta</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/chemicalchecker/util/plot/multiplot.html#MultiPlot.sign_property_distribution"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#chemicalchecker.util.plot.multiplot.MultiPlot.sign_property_distribution" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="chemicalchecker.util.plot.multiplot.MultiPlot.spy_augment">
+<span class="sig-name descname"><span class="pre">spy_augment</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">matrix</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">augment_fn</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">epochs</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/chemicalchecker/util/plot/multiplot.html#MultiPlot.spy_augment"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#chemicalchecker.util.plot.multiplot.MultiPlot.spy_augment" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="chemicalchecker.util.plot.multiplot.MultiPlot.spy_sign2_universe_matrix">
+<em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">spy_sign2_universe_matrix</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">universe_h5</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">datasets</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">chunk_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1000</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/chemicalchecker/util/plot/multiplot.html#MultiPlot.spy_sign2_universe_matrix"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#chemicalchecker.util.plot.multiplot.MultiPlot.spy_sign2_universe_matrix" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</section>
+
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2020, SBNB.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

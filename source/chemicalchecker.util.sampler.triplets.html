@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>chemicalchecker.util.sampler.triplets module &mdash; chemicalchecker 1.0.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=fa44fd50" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=19f00094" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/logo.css?v=fc604eda" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/overrides.css?v=466af0f7" />
+
+  
+    <link rel="shortcut icon" href="../_static/favicon.ico"/>
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="../_static/documentation_options.js?v=8d563738"></script>
+        <script src="../_static/doctools.js?v=888ff710"></script>
+        <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html">
+            
+              <img src="../_static/logo.svg" class="logo" alt="Logo"/>
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../manifesto.html">Chemical Checker Manifesto</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../sources.html">Datasets</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../signaturization.html">Signaturization</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">chemicalchecker</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">chemicalchecker.util.sampler.triplets module</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/source/chemicalchecker.util.sampler.triplets.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="module-chemicalchecker.util.sampler.triplets">
+<span id="chemicalchecker-util-sampler-triplets-module"></span><h1>chemicalchecker.util.sampler.triplets module<a class="headerlink" href="#module-chemicalchecker.util.sampler.triplets" title="Link to this heading"></a></h1>
+<p>Triplet sampler.</p>
+<p>Given a signature, sample triplets.</p>
+<dl class="py class">
+<dt class="sig sig-object py" id="chemicalchecker.util.sampler.triplets.TripletSampler">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">TripletSampler</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">cc</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sign0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_sampled_keys</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">10000</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">save</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/chemicalchecker/util/sampler/triplets.html#TripletSampler"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#chemicalchecker.util.sampler.triplets.TripletSampler" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>TripletSampler class.</p>
+<p>Initialize a TripletSampler instance.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="chemicalchecker.util.sampler.triplets.TripletSampler.choice">
+<span class="sig-name descname"><span class="pre">choice</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">row</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fmref_idxs</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_samp</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/chemicalchecker/util/sampler/triplets.html#TripletSampler.choice"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#chemicalchecker.util.sampler.triplets.TripletSampler.choice" title="Link to this definition"></a></dt>
+<dd><p>Choose from a list of candidates</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="chemicalchecker.util.sampler.triplets.TripletSampler.map_triplets_to_reference">
+<span class="sig-name descname"><span class="pre">map_triplets_to_reference</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">triplets</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/chemicalchecker/util/sampler/triplets.html#TripletSampler.map_triplets_to_reference"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#chemicalchecker.util.sampler.triplets.TripletSampler.map_triplets_to_reference" title="Link to this definition"></a></dt>
+<dd><p>Map triplets from full to reference indices</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="chemicalchecker.util.sampler.triplets.TripletSampler.sample">
+<span class="sig-name descname"><span class="pre">sample</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">datasets</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_triplets</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1000000</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">p_pos</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.001</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">p_neg</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_pos</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">10</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_pos</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">100</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_neg</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1000</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_rounds</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">3</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/chemicalchecker/util/sampler/triplets.html#TripletSampler.sample"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#chemicalchecker.util.sampler.triplets.TripletSampler.sample" title="Link to this definition"></a></dt>
+<dd><p>Sample triplets from multiple exemplary datasets of the CC.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>datasets</strong> (<em>list</em>) – Datasets to be used for the triplet sampling.
+In none specified, all exemplary are used (default=None).</p></li>
+<li><p><strong>num_triplets</strong> (<em>int</em>) – Number of triplets to sample
+(default=1000000).</p></li>
+<li><p><strong>p_pos</strong> (<em>float</em>) – P-value for positive cases (default=0.001).</p></li>
+<li><p><strong>p_neg</strong> (<em>float</em>) – P-value for negative cases. In order to provide
+‘hard’ cases, it is recommended to put a relatively low
+p-value (default=0.1).</p></li>
+<li><p><strong>min_pos</strong> (<em>int</em>) – Minimum number of neighbors considered to be
+positives.</p></li>
+<li><p><strong>max_neg</strong> (<em>int</em>) – Maximum number of neighbors considered to be
+negatives.</p></li>
+<li><p><strong>max_rounds</strong> (<em>int</em>) – Triplets may be sampled redundantly. Number
+of rounds to be done before stopping trying (default=10).</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="chemicalchecker.util.sampler.triplets.TripletSampler.sample_triplets">
+<span class="sig-name descname"><span class="pre">sample_triplets</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">datasets</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_triplets</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">p_pos</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">p_neg</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_pos</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_pos</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_neg</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_rounds</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/chemicalchecker/util/sampler/triplets.html#TripletSampler.sample_triplets"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#chemicalchecker.util.sampler.triplets.TripletSampler.sample_triplets" title="Link to this definition"></a></dt>
+<dd><p>Sample triplets from multiple exemplary datasets of the CC.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="chemicalchecker.util.sampler.triplets.TripletSampler.sample_triplets_from_dataset">
+<span class="sig-name descname"><span class="pre">sample_triplets_from_dataset</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">keys</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dataset</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_triplets</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">p_pos</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">p_neg</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_pos</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_pos</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_neg</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/chemicalchecker/util/sampler/triplets.html#TripletSampler.sample_triplets_from_dataset"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#chemicalchecker.util.sampler.triplets.TripletSampler.sample_triplets_from_dataset" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="chemicalchecker.util.sampler.triplets.TripletSampler.save_triplets">
+<span class="sig-name descname"><span class="pre">save_triplets</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">triplets</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fn</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/chemicalchecker/util/sampler/triplets.html#TripletSampler.save_triplets"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#chemicalchecker.util.sampler.triplets.TripletSampler.save_triplets" title="Link to this definition"></a></dt>
+<dd><p>Save triplets</p>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2020, SBNB.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

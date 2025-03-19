@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>chemicalchecker.util package &mdash; chemicalchecker 1.0.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=fa44fd50" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=19f00094" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/logo.css?v=fc604eda" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/overrides.css?v=466af0f7" />
+
+  
+    <link rel="shortcut icon" href="../_static/favicon.ico"/>
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="../_static/documentation_options.js?v=8d563738"></script>
+        <script src="../_static/doctools.js?v=888ff710"></script>
+        <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html">
+            
+              <img src="../_static/logo.svg" class="logo" alt="Logo"/>
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../manifesto.html">Chemical Checker Manifesto</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../sources.html">Datasets</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../signaturization.html">Signaturization</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">chemicalchecker</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">chemicalchecker.util package</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/source/chemicalchecker.util.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="module-chemicalchecker.util">
+<span id="chemicalchecker-util-package"></span><h1>chemicalchecker.util package<a class="headerlink" href="#module-chemicalchecker.util" title="Link to this heading"></a></h1>
+<p>Utilities used throughout the code.</p>
+<p>This module expose several utilities that are broadly used throughout the
+Chemical Checker code (e.g. <a class="reference internal" href="chemicalchecker.util.logging.html#module-chemicalchecker.util.logging" title="chemicalchecker.util.logging"><code class="xref py py-mod docutils literal notranslate"><span class="pre">logging</span></code></a> for handling
+output or <a class="reference internal" href="chemicalchecker.util.hpc.html#module-chemicalchecker.util.hpc" title="chemicalchecker.util.hpc"><code class="xref py py-mod docutils literal notranslate"><span class="pre">hpc</span></code></a> to submit jobs to the HPC cluster).</p>
+<section id="subpackages">
+<h2>Subpackages<a class="headerlink" href="#subpackages" title="Link to this heading"></a></h2>
+<div class="toctree-wrapper compound">
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="chemicalchecker.util.aggregate.html">chemicalchecker.util.aggregate package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="chemicalchecker.util.aggregate.html#submodules">Submodules</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.aggregate.aggregate.html">chemicalchecker.util.aggregate.aggregate module</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="chemicalchecker.util.aggregate.aggregate.html#chemicalchecker.util.aggregate.aggregate.Aggregate"><code class="docutils literal notranslate"><span class="pre">Aggregate</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="chemicalchecker.util.aggregate.aggregate.html#chemicalchecker.util.aggregate.aggregate.AggregateAsMatrix"><code class="docutils literal notranslate"><span class="pre">AggregateAsMatrix</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="chemicalchecker.util.aggregate.aggregate.html#chemicalchecker.util.aggregate.aggregate.AggregateAsPairs"><code class="docutils literal notranslate"><span class="pre">AggregateAsPairs</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="chemicalchecker.util.config.html">chemicalchecker.util.config package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="chemicalchecker.util.config.html#submodules">Submodules</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.config.config.html">chemicalchecker.util.config.config module</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="chemicalchecker.util.config.config.html#chemicalchecker.util.config.config.Config"><code class="docutils literal notranslate"><span class="pre">Config</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="chemicalchecker.util.decomposition.html">chemicalchecker.util.decomposition package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="chemicalchecker.util.decomposition.html#submodules">Submodules</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.decomposition.correlation.html">chemicalchecker.util.decomposition.correlation module</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="chemicalchecker.util.decomposition.correlation.html#chemicalchecker.util.decomposition.correlation.batcher"><code class="docutils literal notranslate"><span class="pre">batcher()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="chemicalchecker.util.decomposition.correlation.html#chemicalchecker.util.decomposition.correlation.cross_validate"><code class="docutils literal notranslate"><span class="pre">cross_validate()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="chemicalchecker.util.decomposition.correlation.html#chemicalchecker.util.decomposition.correlation.dataset_correlation"><code class="docutils literal notranslate"><span class="pre">dataset_correlation()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="chemicalchecker.util.decomposition.correlation.html#chemicalchecker.util.decomposition.correlation.pls"><code class="docutils literal notranslate"><span class="pre">pls()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="chemicalchecker.util.decomposition.correlation.html#chemicalchecker.util.decomposition.correlation.pls_single"><code class="docutils literal notranslate"><span class="pre">pls_single()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="chemicalchecker.util.decomposition.correlation.html#chemicalchecker.util.decomposition.correlation.z_transform"><code class="docutils literal notranslate"><span class="pre">z_transform()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="chemicalchecker.util.decorator.html">chemicalchecker.util.decorator package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="chemicalchecker.util.decorator.html#submodules">Submodules</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.decorator.profilehooks.html">chemicalchecker.util.decorator.profilehooks module</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="chemicalchecker.util.decorator.profilehooks.html#chemicalchecker.util.decorator.profilehooks.coverage"><code class="docutils literal notranslate"><span class="pre">coverage()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="chemicalchecker.util.decorator.profilehooks.html#chemicalchecker.util.decorator.profilehooks.coverage_with_hotshot"><code class="docutils literal notranslate"><span class="pre">coverage_with_hotshot()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="chemicalchecker.util.decorator.profilehooks.html#chemicalchecker.util.decorator.profilehooks.profile"><code class="docutils literal notranslate"><span class="pre">profile()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="chemicalchecker.util.decorator.profilehooks.html#chemicalchecker.util.decorator.profilehooks.timecall"><code class="docutils literal notranslate"><span class="pre">timecall()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.decorator.property.html">chemicalchecker.util.decorator.property module</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="chemicalchecker.util.decorator.property.html#chemicalchecker.util.decorator.property.cached_property"><code class="docutils literal notranslate"><span class="pre">cached_property</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.decorator.safe.html">chemicalchecker.util.decorator.safe module</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="chemicalchecker.util.decorator.safe.html#chemicalchecker.util.decorator.safe.safe_return"><code class="docutils literal notranslate"><span class="pre">safe_return()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.decorator.timeout.html">chemicalchecker.util.decorator.timeout module</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="chemicalchecker.util.decorator.timeout.html#chemicalchecker.util.decorator.timeout.TimeoutError"><code class="docutils literal notranslate"><span class="pre">TimeoutError</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="chemicalchecker.util.decorator.timeout.html#chemicalchecker.util.decorator.timeout.timeout"><code class="docutils literal notranslate"><span class="pre">timeout()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="chemicalchecker.util.download.html">chemicalchecker.util.download package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="chemicalchecker.util.download.html#submodules">Submodules</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.download.download.html">chemicalchecker.util.download.download module</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="chemicalchecker.util.download.download.html#chemicalchecker.util.download.download.Downloader"><code class="docutils literal notranslate"><span class="pre">Downloader</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="chemicalchecker.util.filesystem.html">chemicalchecker.util.filesystem package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="chemicalchecker.util.filesystem.html#submodules">Submodules</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.filesystem.filesystem.html">chemicalchecker.util.filesystem.filesystem module</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="chemicalchecker.util.filesystem.filesystem.html#chemicalchecker.util.filesystem.filesystem.FileSystem"><code class="docutils literal notranslate"><span class="pre">FileSystem</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="chemicalchecker.util.hpc.html">chemicalchecker.util.hpc package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="chemicalchecker.util.hpc.html#submodules">Submodules</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.hpc.hpc.html">chemicalchecker.util.hpc.hpc module</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="chemicalchecker.util.hpc.hpc.html#chemicalchecker.util.hpc.hpc.HPC"><code class="docutils literal notranslate"><span class="pre">HPC</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.hpc.local.html">chemicalchecker.util.hpc.local module</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="chemicalchecker.util.hpc.local.html#chemicalchecker.util.hpc.local.local"><code class="docutils literal notranslate"><span class="pre">local</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.hpc.sge.html">chemicalchecker.util.hpc.sge module</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="chemicalchecker.util.hpc.sge.html#chemicalchecker.util.hpc.sge.sge"><code class="docutils literal notranslate"><span class="pre">sge</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.hpc.slurm.html">chemicalchecker.util.hpc.slurm module</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="chemicalchecker.util.hpc.slurm.html#chemicalchecker.util.hpc.slurm.slurm"><code class="docutils literal notranslate"><span class="pre">slurm</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.hpc.slurm_gpu.html">chemicalchecker.util.hpc.slurm_gpu module</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="chemicalchecker.util.hpc.slurm_gpu.html#chemicalchecker.util.hpc.slurm_gpu.slurmGPU"><code class="docutils literal notranslate"><span class="pre">slurmGPU</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.hpc.test_script.html">chemicalchecker.util.hpc.test_script module</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="chemicalchecker.util.keytype.html">chemicalchecker.util.keytype package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="chemicalchecker.util.keytype.html#submodules">Submodules</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.keytype.detect.html">chemicalchecker.util.keytype.detect module</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="chemicalchecker.util.keytype.detect.html#chemicalchecker.util.keytype.detect.KeyTypeDetector"><code class="docutils literal notranslate"><span class="pre">KeyTypeDetector</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="chemicalchecker.util.logging.html">chemicalchecker.util.logging package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="chemicalchecker.util.logging.html#submodules">Submodules</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.logging.our_logging.html">chemicalchecker.util.logging.our_logging module</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="chemicalchecker.util.mol2svg.html">chemicalchecker.util.mol2svg package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="chemicalchecker.util.mol2svg.html#submodules">Submodules</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.mol2svg.mol2svg.html">chemicalchecker.util.mol2svg.mol2svg module</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="chemicalchecker.util.mol2svg.mol2svg.html#chemicalchecker.util.mol2svg.mol2svg.Mol2svg"><code class="docutils literal notranslate"><span class="pre">Mol2svg</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="chemicalchecker.util.network.html">chemicalchecker.util.network package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="chemicalchecker.util.network.html#submodules">Submodules</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.network.network.html">chemicalchecker.util.network.network module</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="chemicalchecker.util.network.network.html#chemicalchecker.util.network.network.HotnetNetwork"><code class="docutils literal notranslate"><span class="pre">HotnetNetwork</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="chemicalchecker.util.network.network.html#chemicalchecker.util.network.network.MultiEdgeNetwork"><code class="docutils literal notranslate"><span class="pre">MultiEdgeNetwork</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="chemicalchecker.util.network.network.html#chemicalchecker.util.network.network.NetworkxNetwork"><code class="docutils literal notranslate"><span class="pre">NetworkxNetwork</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="chemicalchecker.util.network.network.html#chemicalchecker.util.network.network.SNAPNetwork"><code class="docutils literal notranslate"><span class="pre">SNAPNetwork</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="chemicalchecker.util.parser.html">chemicalchecker.util.parser package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="chemicalchecker.util.parser.html#submodules">Submodules</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.parser.converter.html">chemicalchecker.util.parser.converter module</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="chemicalchecker.util.parser.converter.html#chemicalchecker.util.parser.converter.ConversionError"><code class="docutils literal notranslate"><span class="pre">ConversionError</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="chemicalchecker.util.parser.converter.html#chemicalchecker.util.parser.converter.Converter"><code class="docutils literal notranslate"><span class="pre">Converter</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.parser.data_calculator.html">chemicalchecker.util.parser.data_calculator module</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="chemicalchecker.util.parser.data_calculator.html#chemicalchecker.util.parser.data_calculator.DataCalculator"><code class="docutils literal notranslate"><span class="pre">DataCalculator</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.parser.parser.html">chemicalchecker.util.parser.parser module</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="chemicalchecker.util.parser.parser.html#chemicalchecker.util.parser.parser.Parser"><code class="docutils literal notranslate"><span class="pre">Parser</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="chemicalchecker.util.performance.html">chemicalchecker.util.performance package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="chemicalchecker.util.performance.html#submodules">Submodules</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.performance.linkprediction.html">chemicalchecker.util.performance.linkprediction module</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="chemicalchecker.util.performance.linkprediction.html#chemicalchecker.util.performance.linkprediction.LinkPrediction"><code class="docutils literal notranslate"><span class="pre">LinkPrediction</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="chemicalchecker.util.performance.linkprediction.html#chemicalchecker.util.performance.linkprediction.randint"><code class="docutils literal notranslate"><span class="pre">randint()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.performance.performance.html">chemicalchecker.util.performance.performance module</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="chemicalchecker.util.performance.performance.html#chemicalchecker.util.performance.performance.PerformanceBinary"><code class="docutils literal notranslate"><span class="pre">PerformanceBinary</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="chemicalchecker.util.performance.performance.html#chemicalchecker.util.performance.performance.PerformanceCluster"><code class="docutils literal notranslate"><span class="pre">PerformanceCluster</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="chemicalchecker.util.pipeline.html">chemicalchecker.util.pipeline package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="chemicalchecker.util.pipeline.html#subpackages">Subpackages</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.pipeline.tasks.html">chemicalchecker.util.pipeline.tasks package</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="chemicalchecker.util.pipeline.tasks.html#submodules">Submodules</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.pipeline.tasks_web.html">chemicalchecker.util.pipeline.tasks_web package</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="chemicalchecker.util.pipeline.tasks_web.html#submodules">Submodules</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="chemicalchecker.util.pipeline.html#submodules">Submodules</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.pipeline.pipeline.html">chemicalchecker.util.pipeline.pipeline module</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="chemicalchecker.util.pipeline.pipeline.html#chemicalchecker.util.pipeline.pipeline.Pipeline"><code class="docutils literal notranslate"><span class="pre">Pipeline</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.pipeline.task_base.html">chemicalchecker.util.pipeline.task_base module</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="chemicalchecker.util.pipeline.task_base.html#chemicalchecker.util.pipeline.task_base.BaseTask"><code class="docutils literal notranslate"><span class="pre">BaseTask</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="chemicalchecker.util.plot.html">chemicalchecker.util.plot package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="chemicalchecker.util.plot.html#submodules">Submodules</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.plot.ccstatsplot.html">chemicalchecker.util.plot.ccstatsplot module</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="chemicalchecker.util.plot.ccstatsplot.html#chemicalchecker.util.plot.ccstatsplot.CCStatsPlot"><code class="docutils literal notranslate"><span class="pre">CCStatsPlot</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.plot.diagnosticsplot.html">chemicalchecker.util.plot.diagnosticsplot module</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="chemicalchecker.util.plot.diagnosticsplot.html#chemicalchecker.util.plot.diagnosticsplot.DiagnosisPlot"><code class="docutils literal notranslate"><span class="pre">DiagnosisPlot</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.plot.multiccplot.html">chemicalchecker.util.plot.multiccplot module</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="chemicalchecker.util.plot.multiccplot.html#chemicalchecker.util.plot.multiccplot.MultiCCPlot"><code class="docutils literal notranslate"><span class="pre">MultiCCPlot</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.plot.multiplot.html">chemicalchecker.util.plot.multiplot module</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="chemicalchecker.util.plot.multiplot.html#chemicalchecker.util.plot.multiplot.MultiPlot"><code class="docutils literal notranslate"><span class="pre">MultiPlot</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.plot.plot.html">chemicalchecker.util.plot.plot module</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="chemicalchecker.util.plot.plot.html#chemicalchecker.util.plot.plot.Plot"><code class="docutils literal notranslate"><span class="pre">Plot</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="chemicalchecker.util.plot.plot.html#chemicalchecker.util.plot.plot.coord_color"><code class="docutils literal notranslate"><span class="pre">coord_color()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="chemicalchecker.util.plot.plot.html#chemicalchecker.util.plot.plot.lighten_color"><code class="docutils literal notranslate"><span class="pre">lighten_color()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="chemicalchecker.util.plot.plot.html#chemicalchecker.util.plot.plot.skip_on_exception"><code class="docutils literal notranslate"><span class="pre">skip_on_exception()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.plot.util.html">chemicalchecker.util.plot.util module</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="chemicalchecker.util.plot.util.html#chemicalchecker.util.plot.util.canvas"><code class="docutils literal notranslate"><span class="pre">canvas()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="chemicalchecker.util.plot.util.html#chemicalchecker.util.plot.util.cc_colors"><code class="docutils literal notranslate"><span class="pre">cc_colors()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="chemicalchecker.util.plot.util.html#chemicalchecker.util.plot.util.cc_coords"><code class="docutils literal notranslate"><span class="pre">cc_coords()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="chemicalchecker.util.plot.util.html#chemicalchecker.util.plot.util.cc_coords_name"><code class="docutils literal notranslate"><span class="pre">cc_coords_name()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="chemicalchecker.util.plot.util.html#chemicalchecker.util.plot.util.cc_grid"><code class="docutils literal notranslate"><span class="pre">cc_grid()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="chemicalchecker.util.plot.util.html#chemicalchecker.util.plot.util.cc_palette"><code class="docutils literal notranslate"><span class="pre">cc_palette()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="chemicalchecker.util.plot.util.html#chemicalchecker.util.plot.util.cm2inch"><code class="docutils literal notranslate"><span class="pre">cm2inch()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="chemicalchecker.util.plot.util.html#chemicalchecker.util.plot.util.coord_color"><code class="docutils literal notranslate"><span class="pre">coord_color()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="chemicalchecker.util.plot.util.html#chemicalchecker.util.plot.util.homogenous_ticks"><code class="docutils literal notranslate"><span class="pre">homogenous_ticks()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="chemicalchecker.util.plot.util.html#chemicalchecker.util.plot.util.lighten_color"><code class="docutils literal notranslate"><span class="pre">lighten_color()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="chemicalchecker.util.plot.util.html#chemicalchecker.util.plot.util.make_cbar_ax"><code class="docutils literal notranslate"><span class="pre">make_cbar_ax()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="chemicalchecker.util.plot.util.html#chemicalchecker.util.plot.util.make_cmap"><code class="docutils literal notranslate"><span class="pre">make_cmap()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="chemicalchecker.util.plot.util.html#chemicalchecker.util.plot.util.predefined_cc_colors"><code class="docutils literal notranslate"><span class="pre">predefined_cc_colors()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="chemicalchecker.util.plot.util.html#chemicalchecker.util.plot.util.projection"><code class="docutils literal notranslate"><span class="pre">projection()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="chemicalchecker.util.plot.util.html#chemicalchecker.util.plot.util.rgb2hex"><code class="docutils literal notranslate"><span class="pre">rgb2hex()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="chemicalchecker.util.plot.util.html#chemicalchecker.util.plot.util.set_style"><code class="docutils literal notranslate"><span class="pre">set_style()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="chemicalchecker.util.psql.html">chemicalchecker.util.psql package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="chemicalchecker.util.psql.html#submodules">Submodules</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.psql.psql.html">chemicalchecker.util.psql.psql module</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="chemicalchecker.util.psql.psql.html#chemicalchecker.util.psql.psql.get_connection"><code class="docutils literal notranslate"><span class="pre">get_connection()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="chemicalchecker.util.psql.psql.html#chemicalchecker.util.psql.psql.qstring"><code class="docutils literal notranslate"><span class="pre">qstring()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="chemicalchecker.util.psql.psql.html#chemicalchecker.util.psql.psql.qstring_cur"><code class="docutils literal notranslate"><span class="pre">qstring_cur()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="chemicalchecker.util.psql.psql.html#chemicalchecker.util.psql.psql.query"><code class="docutils literal notranslate"><span class="pre">query()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="chemicalchecker.util.remove_near_duplicates.html">chemicalchecker.util.remove_near_duplicates package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="chemicalchecker.util.remove_near_duplicates.html#submodules">Submodules</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.remove_near_duplicates.remove_near_duplicates.html">chemicalchecker.util.remove_near_duplicates.remove_near_duplicates module</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="chemicalchecker.util.remove_near_duplicates.remove_near_duplicates.html#chemicalchecker.util.remove_near_duplicates.remove_near_duplicates.RNDuplicates"><code class="docutils literal notranslate"><span class="pre">RNDuplicates</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="chemicalchecker.util.sampler.html">chemicalchecker.util.sampler package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="chemicalchecker.util.sampler.html#submodules">Submodules</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.sampler.triplets.html">chemicalchecker.util.sampler.triplets module</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="chemicalchecker.util.sampler.triplets.html#chemicalchecker.util.sampler.triplets.TripletSampler"><code class="docutils literal notranslate"><span class="pre">TripletSampler</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="chemicalchecker.util.sanitize.html">chemicalchecker.util.sanitize package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="chemicalchecker.util.sanitize.html#submodules">Submodules</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.sanitize.sanitizer.html">chemicalchecker.util.sanitize.sanitizer module</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="chemicalchecker.util.sanitize.sanitizer.html#chemicalchecker.util.sanitize.sanitizer.Sanitizer"><code class="docutils literal notranslate"><span class="pre">Sanitizer</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="chemicalchecker.util.splitter.html">chemicalchecker.util.splitter package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="chemicalchecker.util.splitter.html#submodules">Submodules</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.splitter.ae_siam_traintest.html">chemicalchecker.util.splitter.ae_siam_traintest module</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="chemicalchecker.util.splitter.ae_siam_traintest.html#chemicalchecker.util.splitter.ae_siam_traintest.AE_SiameseTraintest"><code class="docutils literal notranslate"><span class="pre">AE_SiameseTraintest</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.splitter.globalneighbortriplets.html">chemicalchecker.util.splitter.globalneighbortriplets module</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="chemicalchecker.util.splitter.globalneighbortriplets.html#chemicalchecker.util.splitter.globalneighbortriplets.GlobalNeighborTripletTraintest"><code class="docutils literal notranslate"><span class="pre">GlobalNeighborTripletTraintest</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.splitter.neighborerror.html">chemicalchecker.util.splitter.neighborerror module</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="chemicalchecker.util.splitter.neighborerror.html#chemicalchecker.util.splitter.neighborerror.NeighborErrorTraintest"><code class="docutils literal notranslate"><span class="pre">NeighborErrorTraintest</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.splitter.neighborpair.html">chemicalchecker.util.splitter.neighborpair module</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="chemicalchecker.util.splitter.neighborpair.html#chemicalchecker.util.splitter.neighborpair.NeighborPairTraintest"><code class="docutils literal notranslate"><span class="pre">NeighborPairTraintest</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.splitter.neighbortriplet.html">chemicalchecker.util.splitter.neighbortriplet module</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="chemicalchecker.util.splitter.neighbortriplet.html#chemicalchecker.util.splitter.neighbortriplet.AdriaTripletSampler"><code class="docutils literal notranslate"><span class="pre">AdriaTripletSampler</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="chemicalchecker.util.splitter.neighbortriplet.html#chemicalchecker.util.splitter.neighbortriplet.BaseTripletSampler"><code class="docutils literal notranslate"><span class="pre">BaseTripletSampler</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="chemicalchecker.util.splitter.neighbortriplet.html#chemicalchecker.util.splitter.neighbortriplet.OldTripletSampler"><code class="docutils literal notranslate"><span class="pre">OldTripletSampler</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="chemicalchecker.util.splitter.neighbortriplet.html#chemicalchecker.util.splitter.neighbortriplet.PrecomputedTripletSampler"><code class="docutils literal notranslate"><span class="pre">PrecomputedTripletSampler</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="chemicalchecker.util.splitter.neighbortriplet.html#chemicalchecker.util.splitter.neighbortriplet.TripletIterator"><code class="docutils literal notranslate"><span class="pre">TripletIterator</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.splitter.pairtraintest.html">chemicalchecker.util.splitter.pairtraintest module</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="chemicalchecker.util.splitter.pairtraintest.html#chemicalchecker.util.splitter.pairtraintest.PairTraintest"><code class="docutils literal notranslate"><span class="pre">PairTraintest</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.splitter.traintest.html">chemicalchecker.util.splitter.traintest module</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="chemicalchecker.util.splitter.traintest.html#chemicalchecker.util.splitter.traintest.Traintest"><code class="docutils literal notranslate"><span class="pre">Traintest</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="chemicalchecker.util.transform.html">chemicalchecker.util.transform package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="chemicalchecker.util.transform.html#submodules">Submodules</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.transform.base.html">chemicalchecker.util.transform.base module</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="chemicalchecker.util.transform.base.html#chemicalchecker.util.transform.base.BaseTransform"><code class="docutils literal notranslate"><span class="pre">BaseTransform</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.transform.gaussian_scale_impute.html">chemicalchecker.util.transform.gaussian_scale_impute module</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="chemicalchecker.util.transform.gaussian_scale_impute.html#chemicalchecker.util.transform.gaussian_scale_impute.deextremize"><code class="docutils literal notranslate"><span class="pre">deextremize()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="chemicalchecker.util.transform.gaussian_scale_impute.html#chemicalchecker.util.transform.gaussian_scale_impute.gaussian_scale_impute"><code class="docutils literal notranslate"><span class="pre">gaussian_scale_impute()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.transform.gaussianize.html">chemicalchecker.util.transform.gaussianize module</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="chemicalchecker.util.transform.gaussianize.html#chemicalchecker.util.transform.gaussianize.Gaussianize"><code class="docutils literal notranslate"><span class="pre">Gaussianize</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="chemicalchecker.util.transform.gaussianize.html#chemicalchecker.util.transform.gaussianize.delta_gmm"><code class="docutils literal notranslate"><span class="pre">delta_gmm()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="chemicalchecker.util.transform.gaussianize.html#chemicalchecker.util.transform.gaussianize.delta_init"><code class="docutils literal notranslate"><span class="pre">delta_init()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="chemicalchecker.util.transform.gaussianize.html#chemicalchecker.util.transform.gaussianize.igmm"><code class="docutils literal notranslate"><span class="pre">igmm()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="chemicalchecker.util.transform.gaussianize.html#chemicalchecker.util.transform.gaussianize.inverse"><code class="docutils literal notranslate"><span class="pre">inverse()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="chemicalchecker.util.transform.gaussianize.html#chemicalchecker.util.transform.gaussianize.w_d"><code class="docutils literal notranslate"><span class="pre">w_d()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="chemicalchecker.util.transform.gaussianize.html#chemicalchecker.util.transform.gaussianize.w_t"><code class="docutils literal notranslate"><span class="pre">w_t()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.transform.lsi.html">chemicalchecker.util.transform.lsi module</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="chemicalchecker.util.transform.lsi.html#chemicalchecker.util.transform.lsi.Corpus"><code class="docutils literal notranslate"><span class="pre">Corpus</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="chemicalchecker.util.transform.lsi.html#chemicalchecker.util.transform.lsi.Lsi"><code class="docutils literal notranslate"><span class="pre">Lsi</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.transform.metric_learn.html">chemicalchecker.util.transform.metric_learn module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.transform.pca.html">chemicalchecker.util.transform.pca module</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="chemicalchecker.util.transform.pca.html#chemicalchecker.util.transform.pca.Pca"><code class="docutils literal notranslate"><span class="pre">Pca</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.transform.scale.html">chemicalchecker.util.transform.scale module</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="chemicalchecker.util.transform.scale.html#chemicalchecker.util.transform.scale.Scale"><code class="docutils literal notranslate"><span class="pre">Scale</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</div>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2020, SBNB.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>chemicalchecker.util.aggregate.aggregate module &mdash; chemicalchecker 1.0.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=fa44fd50" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=19f00094" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/logo.css?v=fc604eda" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/overrides.css?v=466af0f7" />
+
+  
+    <link rel="shortcut icon" href="../_static/favicon.ico"/>
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="../_static/documentation_options.js?v=8d563738"></script>
+        <script src="../_static/doctools.js?v=888ff710"></script>
+        <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html">
+            
+              <img src="../_static/logo.svg" class="logo" alt="Logo"/>
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../manifesto.html">Chemical Checker Manifesto</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../sources.html">Datasets</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../signaturization.html">Signaturization</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">chemicalchecker</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">chemicalchecker.util.aggregate.aggregate module</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/source/chemicalchecker.util.aggregate.aggregate.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="module-chemicalchecker.util.aggregate.aggregate">
+<span id="chemicalchecker-util-aggregate-aggregate-module"></span><h1>chemicalchecker.util.aggregate.aggregate module<a class="headerlink" href="#module-chemicalchecker.util.aggregate.aggregate" title="Link to this heading"></a></h1>
+<p>Data aggregation classes.</p>
+<dl class="py class">
+<dt class="sig sig-object py" id="chemicalchecker.util.aggregate.aggregate.Aggregate">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">Aggregate</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">method</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">input_type</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/chemicalchecker/util/aggregate/aggregate.html#Aggregate"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#chemicalchecker.util.aggregate.aggregate.Aggregate" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>Aggregate class.</p>
+<p>Aggregate samples.</p>
+<p>Initialize a Aggregate instance.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>method</strong> (<em>str</em>) – The aggregation method to be used. Must be one of:
+-first: The first occurrence of the signature is kept.
+-last: The last occurrence of the signature is kept.
+-average: The average of the signature is kept.</p></li>
+<li><p><strong>input_type</strong> (<em>str</em>) – One of ‘pairs’ or ‘matrix’.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="chemicalchecker.util.aggregate.aggregate.Aggregate.transform">
+<span class="sig-name descname"><span class="pre">transform</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">V</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">keys</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">keys_raw</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/chemicalchecker/util/aggregate/aggregate.html#Aggregate.transform"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#chemicalchecker.util.aggregate.aggregate.Aggregate.transform" title="Link to this definition"></a></dt>
+<dd><p>Do the aggregation.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>V</strong> (<em>matrix</em>) – The signatures matrix.</p></li>
+<li><p><strong>keys</strong> (<em>array</em>) – The keys.</p></li>
+<li><p><strong>keys_raw</strong> (<em>array</em>) – The raw keys (default=None).</p></li>
+</ul>
+</dd>
+</dl>
+<p>Returns a (V, keys, keys_raw) tuple.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="chemicalchecker.util.aggregate.aggregate.AggregateAsMatrix">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">AggregateAsMatrix</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">method</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/chemicalchecker/util/aggregate/aggregate.html#AggregateAsMatrix"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#chemicalchecker.util.aggregate.aggregate.AggregateAsMatrix" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>AggregateAsMatrix class.</p>
+<p>Given a matrix with keys with potential duplicates, aggregate them.</p>
+<p>Initialize a AggregateAsMatrix instance.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>method</strong> (<em>str</em>) – The aggregation method to be used. Must be one of:
+-first: The first occurrence of the signature is kept.
+-last: The last occurrence of the signature is kept.
+-average: The average of the signature is kept.</p>
+</dd>
+</dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="chemicalchecker.util.aggregate.aggregate.AggregateAsMatrix.get_agg_func">
+<span class="sig-name descname"><span class="pre">get_agg_func</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/chemicalchecker/util/aggregate/aggregate.html#AggregateAsMatrix.get_agg_func"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#chemicalchecker.util.aggregate.aggregate.AggregateAsMatrix.get_agg_func" title="Link to this definition"></a></dt>
+<dd><p>Get aggregation function.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="chemicalchecker.util.aggregate.aggregate.AggregateAsPairs">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">AggregateAsPairs</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">method</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/chemicalchecker/util/aggregate/aggregate.html#AggregateAsPairs"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#chemicalchecker.util.aggregate.aggregate.AggregateAsPairs" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>AggregateAsPairs class.</p>
+<p>Given a matrix with potential duplicates, aggregate them.</p>
+<p>Initialize a AggregateAsPairs instance.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>method</strong> (<em>str</em>) – The aggregation method to be used. Must be one of:
+-first: The first occurrence of the signature is kept.
+-last: The last occurrence of the signature is kept.
+-average: The average of the signature is kept.</p>
+</dd>
+</dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="chemicalchecker.util.aggregate.aggregate.AggregateAsPairs.get_agg_func">
+<span class="sig-name descname"><span class="pre">get_agg_func</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/chemicalchecker/util/aggregate/aggregate.html#AggregateAsPairs.get_agg_func"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#chemicalchecker.util.aggregate.aggregate.AggregateAsPairs.get_agg_func" title="Link to this definition"></a></dt>
+<dd><p>Get aggregation function.</p>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2020, SBNB.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

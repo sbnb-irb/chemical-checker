@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>chemicalchecker.core.molkit module &mdash; chemicalchecker 1.0.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=fa44fd50" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=19f00094" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/logo.css?v=fc604eda" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/overrides.css?v=466af0f7" />
+
+  
+    <link rel="shortcut icon" href="../_static/favicon.ico"/>
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="../_static/documentation_options.js?v=8d563738"></script>
+        <script src="../_static/doctools.js?v=888ff710"></script>
+        <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html">
+            
+              <img src="../_static/logo.svg" class="logo" alt="Logo"/>
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../manifesto.html">Chemical Checker Manifesto</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../sources.html">Datasets</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../signaturization.html">Signaturization</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">chemicalchecker</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">chemicalchecker.core.molkit module</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/source/chemicalchecker.core.molkit.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="module-chemicalchecker.core.molkit">
+<span id="chemicalchecker-core-molkit-module"></span><h1>chemicalchecker.core.molkit module<a class="headerlink" href="#module-chemicalchecker.core.molkit" title="Link to this heading"></a></h1>
+<p>Molecule representation.</p>
+<p>A simple class to inspect small molecules, easily convert between different
+identifier, and ultimately find if signatures available.</p>
+<dl class="py class">
+<dt class="sig sig-object py" id="chemicalchecker.core.molkit.Mol">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">Mol</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">cc</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mol_str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">str_type</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/chemicalchecker/core/molkit.html#Mol"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#chemicalchecker.core.molkit.Mol" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>Mol class.</p>
+<p>Given a CC instance, provides access to signatures of a input molecule.</p>
+<p>Initialize a Mol instance.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>cc</strong> – Chemical Checker instance.</p></li>
+<li><p><strong>mol_str</strong> – Compound identifier (e.g. SMILES string)</p></li>
+<li><p><strong>str_type</strong> – Type of identifier (‘inchikey’, ‘inchi’ and ‘smiles’ are
+accepted) if ‘None’ we do our best to guess.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="chemicalchecker.core.molkit.Mol.isin">
+<span class="sig-name descname"><span class="pre">isin</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">cctype</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dataset_code</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">molset</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'full'</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/chemicalchecker/core/molkit.html#Mol.isin"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#chemicalchecker.core.molkit.Mol.isin" title="Link to this definition"></a></dt>
+<dd><p>Check if the molecule is in the dataset of interest</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="chemicalchecker.core.molkit.Mol.report_available">
+<span class="sig-name descname"><span class="pre">report_available</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">dataset_code</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'*'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cctype</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'*'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">molset</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'full'</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/chemicalchecker/core/molkit.html#Mol.report_available"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#chemicalchecker.core.molkit.Mol.report_available" title="Link to this definition"></a></dt>
+<dd><p>Check in what datasets the molecule is present</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="chemicalchecker.core.molkit.Mol.signature">
+<span class="sig-name descname"><span class="pre">signature</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">cctype</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dataset_code</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">molset</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'full'</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/chemicalchecker/core/molkit.html#Mol.signature"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#chemicalchecker.core.molkit.Mol.signature" title="Link to this definition"></a></dt>
+<dd><p>Check if the molecule is in the dataset of interest</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="chemicalchecker.core.molkit.Molset">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">Molset</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">cc</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">molecules</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mol_type</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">add_image</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">generic_scaffold</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">molecules_ids</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/chemicalchecker/core/molkit.html#Molset"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#chemicalchecker.core.molkit.Molset" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>Molset class.</p>
+<p>Given a CC instance, provides access to features of a input set of
+molecules for one or more dataset of interest.
+The data is organized in a DataFrame which will be annotated with
+observed and/or predicted features by simple kNN inference.</p>
+<p>Initialize a Mol instance.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>cc</strong> (<em>Chemicalchecker</em>) – Chemical Checker instance.</p></li>
+<li><p><strong>molecules</strong> (<em>list</em>) – A list of molecules in homogenous format
+‘mol_type’. This can also be a DataFrame but we expect it to be
+generated by this same class, so complete and coherent in terms
+of identifiers.</p></li>
+<li><p><strong>mol_type</strong> (<em>str</em>) – Type of identifier options are ‘inchi’, ‘inchikey’,
+‘smiles’ or ‘name’. if ‘name’ is used we query externally
+(cactus.nci and pubchem) and some molecules might be missing.
+If ‘inchikey’ is used, we first query our local db then external
+resource (bonus what we get is added to our local db).
+We will complete the DataFrame adding other identifiers if not
+present yet.</p></li>
+<li><p><strong>mol_col</strong> (<em>str</em>) – The name of the columns in the DataFrame.</p></li>
+<li><p><strong>add_image</strong> (<em>bool</em>) – If True a molecule image is added</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="chemicalchecker.core.molkit.Molset.__getitem__">
+<span class="sig-name descname"><span class="pre">__getitem__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">keys</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/chemicalchecker/core/molkit.html#Molset.__getitem__"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#chemicalchecker.core.molkit.Molset.__getitem__" title="Link to this definition"></a></dt>
+<dd><p>Forward accessing Dataframe columns.</p>
+<p>This allows accessing DataFrame column and keeping the molucule
+structure visualization.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>keys</strong> (<em>list</em>) – a list of column of the Dataframe.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="chemicalchecker.core.molkit.Molset.add_image">
+<em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">add_image</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">df</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/chemicalchecker/core/molkit.html#Molset.add_image"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#chemicalchecker.core.molkit.Molset.add_image" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="chemicalchecker.core.molkit.Molset.annotate">
+<span class="sig-name descname"><span class="pre">annotate</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">dataset_code</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">shorten_dscode</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">include_features</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">feature_map</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">include_values</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">features_from_raw</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">filter_values</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">include_sign0</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/chemicalchecker/core/molkit.html#Molset.annotate"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#chemicalchecker.core.molkit.Molset.annotate" title="Link to this definition"></a></dt>
+<dd><p>Annotate the DataFrame with features fetched CC spaces.</p>
+<p>The minimal annotation if whether the molecule is present or not in the
+dataset of interest. The features, values and predictions are
+optionally available.  Features and values are fetched from the raw
+preprocess file of a given space (before dropping any data).
+The prediction is based on NN at the sign4 level and depends on
+several parameters: 1) the applicability threshold for considering the
+sign4 as reliable, 2) the p-value threshold (on sign4 distance) to
+define the neighbors 3) the number of NN to consider.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>dataset_code</strong> (<em>str</em>) – the CC dataset code: e.g. B4.001.</p></li>
+<li><p><strong>include_features</strong> (<em>bool</em>) – Include features of the molecules from
+their raw preprocess sign0.</p></li>
+<li><p><strong>feature_map</strong> (<em>dict</em>) – A dictionary that will be used to map features
+to a human interpretable format.</p></li>
+<li><p><strong>include_values</strong> (<em>bool</em>) – if True an additional column is added with
+a list of (feature, value) pairs.</p></li>
+<li><p><strong>include_prediction</strong> (<em>bool</em>) – include NN derived predictions.</p></li>
+<li><p><strong>mapping_fn</strong> (<em>dict</em>) – A dictionary performing the mapping between
+features ids and their meaning.</p></li>
+<li><p><strong>shorten_dscode</strong> (<em>bool</em>) – If True get rid of the .001 part of the
+dataset code</p></li>
+<li><p><strong>features_from_raw</strong> (<em>bool</em>) – If True the features are fetched from the
+raw sign0 which includes all features for all molecules. If
+False sign0 features are used, so after the Sanitizer step
+which possibly removes features or molecules.</p></li>
+<li><p><strong>filter_values</strong> (<em>bool</em>) – If True values == 0 are filtered. False is
+recomended when the dataset is continuous data.</p></li>
+<li><p><strong>include_sign0</strong> (<em>bool</em>) – If True the full sign0 for each molecule is
+included in the dataframe.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="chemicalchecker.core.molkit.Molset.combine">
+<em class="property"><span class="pre">classmethod</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">combine</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">cc</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">molset1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">molset2</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">add_image</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">generic_scaffold</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/chemicalchecker/core/molkit.html#Molset.combine"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#chemicalchecker.core.molkit.Molset.combine" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="chemicalchecker.core.molkit.Molset.func_hpc">
+<span class="sig-name descname"><span class="pre">func_hpc</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">func_name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">func_args</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">func_kwargs</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">hpc_kwargs</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">data_path</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/chemicalchecker/core/molkit.html#Molset.func_hpc"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#chemicalchecker.core.molkit.Molset.func_hpc" title="Link to this definition"></a></dt>
+<dd><p>Execute the <em>any</em> object method on the configured HPC.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>func_name</strong> (<em>str</em>) – the name of the function.</p></li>
+<li><p><strong>func_args</strong> (<em>tuple</em>) – the arguments for of the function to be called.</p></li>
+<li><p><strong>func_kwargs</strong> (<em>tuple</em>) – the keyworded arguments for of the function
+to be called.</p></li>
+<li><p><strong>hpc_kwargs</strong> (<em>dict</em>) – arguments for the HPC class.</p></li>
+<li><p><strong>data_path</strong> (<em>str</em>) – the path to the Molset object, if None a copy of
+the data in the job folder will be made.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="chemicalchecker.core.molkit.Molset.get_chebi">
+<em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">get_chebi</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">chebi_obo</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/chemicalchecker/core/molkit.html#Molset.get_chebi"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#chemicalchecker.core.molkit.Molset.get_chebi" title="Link to this definition"></a></dt>
+<dd><p>Get CHEBI id to name dictionary.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="chemicalchecker.core.molkit.Molset.get_chembl_hierarchy">
+<em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">get_chembl_hierarchy</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">chembldb</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'chembl_27'</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/chemicalchecker/core/molkit.html#Molset.get_chembl_hierarchy"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#chemicalchecker.core.molkit.Molset.get_chembl_hierarchy" title="Link to this definition"></a></dt>
+<dd><p>Get protein class and proteins in tree format.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="chemicalchecker.core.molkit.Molset.get_chembl_protein_classes">
+<em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">get_chembl_protein_classes</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">chembldb</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'chembl_27'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">prefix_level</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/chemicalchecker/core/molkit.html#Molset.get_chembl_protein_classes"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#chemicalchecker.core.molkit.Molset.get_chembl_protein_classes" title="Link to this definition"></a></dt>
+<dd><p>Get protein class id to name dictionary.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="chemicalchecker.core.molkit.Molset.get_inchikey_inchi_map">
+<span class="sig-name descname"><span class="pre">get_inchikey_inchi_map</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">inks</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/chemicalchecker/core/molkit.html#Molset.get_inchikey_inchi_map"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#chemicalchecker.core.molkit.Molset.get_inchikey_inchi_map" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="chemicalchecker.core.molkit.Molset.get_name_inchi_map">
+<span class="sig-name descname"><span class="pre">get_name_inchi_map</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">names</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/chemicalchecker/core/molkit.html#Molset.get_name_inchi_map"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#chemicalchecker.core.molkit.Molset.get_name_inchi_map" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="chemicalchecker.core.molkit.Molset.get_uniprot_annotation">
+<em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">get_uniprot_annotation</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">entries</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/chemicalchecker/core/molkit.html#Molset.get_uniprot_annotation"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#chemicalchecker.core.molkit.Molset.get_uniprot_annotation" title="Link to this definition"></a></dt>
+<dd><p>Get information on Uniprot entries.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="chemicalchecker.core.molkit.Molset.load">
+<em class="property"><span class="pre">classmethod</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">load</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">filename</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cc</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cc_root</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">add_image</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/chemicalchecker/core/molkit.html#Molset.load"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#chemicalchecker.core.molkit.Molset.load" title="Link to this definition"></a></dt>
+<dd><p>Load a Molset instance.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>filename</strong> (<em>str</em>) – The path of the file to load.</p></li>
+<li><p><strong>cc</strong> (<em>ChemicalChecker</em>) – An already initialized CC instance.</p></li>
+<li><p><strong>cc_root</strong> (<em>str</em>) – Path to the root of a Chemical Checker. If None
+we try using the saved path. If that is not reachable we use
+the default (default is cc_config dependent) CC.</p></li>
+<li><p><strong>add_image</strong> (<em>bool</em>) – If True a molecule image is added.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="chemicalchecker.core.molkit.Molset.predict">
+<span class="sig-name descname"><span class="pre">predict</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">dataset_code</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">shorten_dscode</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">applicability_thr_query</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">applicability_thr_nn</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_nr_nn</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1000</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pvalue_thr_nn</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.0001</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">limit_top_nn</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1000</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">return_stats</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">return_sign0</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">blacklist</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">[]</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">aggregation_thr</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">return_probas</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/chemicalchecker/core/molkit.html#Molset.predict"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#chemicalchecker.core.molkit.Molset.predict" title="Link to this definition"></a></dt>
+<dd><p>Annotate the DataFrame with predicted features based on neighbors.</p>
+<p>In this case we can potentially get annotation for every molecules.
+The molecules are first signaturized (sign4) filtered by applicability
+and then searched against molecules within the CC sign4.
+Nearest neighbors are selected for each molecule based on user
+specified parameters. Only NN that are found in the sign0 of the space
+are preserved. The annotations of these NN are aggregated (multiple
+strategies are possible) and finally assigned to the molecule.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>dataset_code</strong> (<em>str</em>) – the CC dataset code: e.g. B4.001.</p></li>
+<li><p><strong>shorten_dscode</strong> (<em>bool</em>) – If True get rid of the .001 part of the
+dataset code</p></li>
+<li><p><strong>applicability_thr_query</strong> (<em>float</em>) – Only query with a sign4
+applicability above this threshold will be searched for
+neighbors.</p></li>
+<li><p><strong>applicability_thr_nn</strong> (<em>float</em>) – Only neighbors with a sign4
+applicability above this threshold will be used for features
+inference.</p></li>
+<li><p><strong>max_nr_nn</strong> (<em>int</em>) – Maximum number of neighbors to possibly consider.</p></li>
+<li><p><strong>pvalue_thr</strong> (<em>float</em>) – Filter neighbors based on distance.</p></li>
+<li><p><strong>limit_top_nn</strong> (<em>int</em>) – Only keep topN neighbors for feature
+predictions.</p></li>
+<li><p><strong>return_stats</strong> (<em>bool</em>) – if True return a dataframe with statistics
+on the NN search filtering steps.</p></li>
+<li><p><strong>return_sign0</strong> (<em>bool</em>) – if True return sign0 format prediction (only
+for binary spaces).</p></li>
+<li><p><strong>blacklist</strong> (<em>list</em>) – List of inchikeys of molecules to disregard
+during neighbors search. Used for comparison to other
+prediction approach where these molecules are the test set.</p></li>
+<li><p><strong>return_probas</strong> (<em>bool</em>) – if True the probability for each predicted
+class are also returned.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="chemicalchecker.core.molkit.Molset.project">
+<span class="sig-name descname"><span class="pre">project</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">projector</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">projector_name</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">datasets</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'exemplary'</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/chemicalchecker/core/molkit.html#Molset.project"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#chemicalchecker.core.molkit.Molset.project" title="Link to this definition"></a></dt>
+<dd><p>Annotate the DataFrame with projection of the signatures.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>projector</strong> (<em>object</em>) – Any preinitialized projector exposing the
+‘fit_transform’ function.</p></li>
+<li><p><strong>projector_name</strong> (<em>str</em>) – The name of the projector, used to define the
+new DataFrame columns.</p></li>
+<li><p><strong>datasets</strong> (<em>list</em>) – the CC datasets code: e.g. [‘B4.001’].
+Use ‘exemplary’ to get signatures for all exemplary CC spaces.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="chemicalchecker.core.molkit.Molset.save">
+<span class="sig-name descname"><span class="pre">save</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">destination</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">overwrite</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/chemicalchecker/core/molkit.html#Molset.save"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#chemicalchecker.core.molkit.Molset.save" title="Link to this definition"></a></dt>
+<dd><p>Save a Molset instance.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>destination</strong> (<em>str</em>) – The destination path</p></li>
+<li><p><strong>overwrite</strong> (<em>bool</em>) – Whether to overwrite in case the file exists.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="chemicalchecker.core.molkit.Molset.signaturize">
+<span class="sig-name descname"><span class="pre">signaturize</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">datasets</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'exemplary'</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/chemicalchecker/core/molkit.html#Molset.signaturize"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#chemicalchecker.core.molkit.Molset.signaturize" title="Link to this definition"></a></dt>
+<dd><p>Annotate the DataFrame with predicted sign4 signatures.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>datasets</strong> (<em>list</em>) – the CC datasets code: e.g. [‘B4.001’].
+Use ‘exemplary’ to get signatures for all exemplary CC spaces.</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2020, SBNB.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

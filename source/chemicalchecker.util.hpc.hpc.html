@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>chemicalchecker.util.hpc.hpc module &mdash; chemicalchecker 1.0.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=fa44fd50" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=19f00094" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/logo.css?v=fc604eda" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/overrides.css?v=466af0f7" />
+
+  
+    <link rel="shortcut icon" href="../_static/favicon.ico"/>
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="../_static/documentation_options.js?v=8d563738"></script>
+        <script src="../_static/doctools.js?v=888ff710"></script>
+        <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html">
+            
+              <img src="../_static/logo.svg" class="logo" alt="Logo"/>
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../manifesto.html">Chemical Checker Manifesto</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../sources.html">Datasets</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../signaturization.html">Signaturization</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">chemicalchecker</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">chemicalchecker.util.hpc.hpc module</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/source/chemicalchecker.util.hpc.hpc.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="module-chemicalchecker.util.hpc.hpc">
+<span id="chemicalchecker-util-hpc-hpc-module"></span><h1>chemicalchecker.util.hpc.hpc module<a class="headerlink" href="#module-chemicalchecker.util.hpc.hpc" title="Link to this heading"></a></h1>
+<p>HPC factory.</p>
+<p>Allow the initialization of any of the defined queueing systems.
+Provide a shared interface to get job status, check log for errors, and
+compress log output.</p>
+<dl class="py class">
+<dt class="sig sig-object py" id="chemicalchecker.util.hpc.hpc.HPC">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">HPC</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/chemicalchecker/util/hpc/hpc.html#HPC"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#chemicalchecker.util.hpc.hpc.HPC" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>HPC factory class.</p>
+<p>Initialize a HPC instance.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>system</strong> (<em>str</em>) – Queuing HPC system. (default: ‘’)</p></li>
+<li><p><strong>host</strong> (<em>str</em>) – Name of the HPC host master. (default: ‘’)</p></li>
+<li><p><strong>queue</strong> (<em>str</em>) – Name of the queue. (default: ‘’)</p></li>
+<li><p><strong>username</strong> (<em>str</em>) – Username to connect to the host. (default: ‘’)</p></li>
+<li><p><strong>password</strong> (<em>str</em>) – Password to connect. (default: ‘’)</p></li>
+<li><p><strong>error_finder</strong> (<em>func</em>) – Method to search errors in HPC jobs log.
+(default: None)</p></li>
+<li><p><strong>dry_run</strong> (<em>bool</em>) – Only for test checks. (default=False)</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="chemicalchecker.util.hpc.hpc.HPC.DONE">
+<span class="sig-name descname"><span class="pre">DONE</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'done'</span></em><a class="headerlink" href="#chemicalchecker.util.hpc.hpc.HPC.DONE" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="chemicalchecker.util.hpc.hpc.HPC.ERROR">
+<span class="sig-name descname"><span class="pre">ERROR</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'error'</span></em><a class="headerlink" href="#chemicalchecker.util.hpc.hpc.HPC.ERROR" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="chemicalchecker.util.hpc.hpc.HPC.READY">
+<span class="sig-name descname"><span class="pre">READY</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'ready'</span></em><a class="headerlink" href="#chemicalchecker.util.hpc.hpc.HPC.READY" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="chemicalchecker.util.hpc.hpc.HPC.STARTED">
+<span class="sig-name descname"><span class="pre">STARTED</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'started'</span></em><a class="headerlink" href="#chemicalchecker.util.hpc.hpc.HPC.STARTED" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="chemicalchecker.util.hpc.hpc.HPC.check_errors">
+<span class="sig-name descname"><span class="pre">check_errors</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/chemicalchecker/util/hpc/hpc.html#HPC.check_errors"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#chemicalchecker.util.hpc.hpc.HPC.check_errors" title="Link to this definition"></a></dt>
+<dd><p>Check for errors in the output logs of the jobs.</p>
+<p>If there are no errors and the status is <code class="docutils literal notranslate"><span class="pre">done</span></code>, the status will
+change to <code class="docutils literal notranslate"><span class="pre">ready</span></code>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Lines in the output logs where the error is found.
+The format of the errors is filename, line number and line text.
+If there are no errors it returns None.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>errors (str)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="chemicalchecker.util.hpc.hpc.HPC.compress">
+<span class="sig-name descname"><span class="pre">compress</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/chemicalchecker/util/hpc/hpc.html#HPC.compress"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#chemicalchecker.util.hpc.hpc.HPC.compress" title="Link to this definition"></a></dt>
+<dd><p>Compress the output logs.</p>
+<p>Compress the output logs into a tar.gz file in the same job directory.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="chemicalchecker.util.hpc.hpc.HPC.from_config">
+<em class="property"><span class="pre">classmethod</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">from_config</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">config</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/chemicalchecker/util/hpc/hpc.html#HPC.from_config"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#chemicalchecker.util.hpc.hpc.HPC.from_config" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="chemicalchecker.util.hpc.hpc.HPC.status">
+<span class="sig-name descname"><span class="pre">status</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/chemicalchecker/util/hpc/hpc.html#HPC.status"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#chemicalchecker.util.hpc.hpc.HPC.status" title="Link to this definition"></a></dt>
+<dd><p>Gets the status of the job submission.</p>
+<p>The status is None if there is no job submission.
+The status is also saved in a <a href="#id1"><span class="problematic" id="id2">*</span></a>.status file in the job directory.</p>
+<blockquote>
+<div><dl>
+<dt>Returns:</dt><dd><p>status (str): There are three possible statuses for a submission:</p>
+<blockquote>
+<div><ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">started</span></code>: Job started but not finished</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">done</span></code>: Job finished</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">ready</span></code>: Job finished without errors</p></li>
+</ul>
+</div></blockquote>
+</dd>
+</dl>
+</div></blockquote>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="chemicalchecker.util.hpc.hpc.HPC.submitMultiJob">
+<span class="sig-name descname"><span class="pre">submitMultiJob</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">command</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/chemicalchecker/util/hpc/hpc.html#HPC.submitMultiJob"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#chemicalchecker.util.hpc.hpc.HPC.submitMultiJob" title="Link to this definition"></a></dt>
+<dd><p>Submit multiple job/task.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>command</strong> (<em>str</em>) – The comand that will be executed in the cluster.
+It should contain a &lt;TASK_ID&gt; string and a &lt;FILE&gt; string.
+This will be replaced but the correponding task id and the
+pickle file with the elements that the command will need.</p></li>
+<li><p><strong>num_jobs</strong> (<em>int</em>) – Number of jobs to run the command. (default: 1)</p></li>
+<li><p><strong>cpu</strong> (<em>int</em>) – Number of cores the job will use. (default: 1)</p></li>
+<li><p><strong>wait</strong> (<em>bool</em>) – Wait for the job to finish. (default: True)</p></li>
+<li><p><strong>jobdir</strong> (<em>str</em>) – Directotory where the job will run. (default: ‘’)</p></li>
+<li><p><strong>job_name</strong> (<em>str</em>) – Name of the job. (default: 10)</p></li>
+<li><p><strong>elements</strong> (<em>list</em>) – List of elements that will need to run on the
+command.</p></li>
+<li><p><strong>compress</strong> (<em>bool</em>) – Compress all generated files after job is done.
+(default: True)</p></li>
+<li><p><strong>check_error</strong> (<em>bool</em>) – Check for error message in output files.
+(default: True)</p></li>
+<li><p><strong>memory</strong> (<em>int</em>) – Maximum memory the job can take kin Gigabytes.
+(default:  2)</p></li>
+<li><p><strong>time</strong> (<em>int</em>) – Maximum time the job can run on the cluster.
+(default: infinite)</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="chemicalchecker.util.hpc.hpc.HPC.test_job">
+<em class="property"><span class="pre">classmethod</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">test_job</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">job_path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">config</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">params</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/chemicalchecker/util/hpc/hpc.html#HPC.test_job"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#chemicalchecker.util.hpc.hpc.HPC.test_job" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</section>
+
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2020, SBNB.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

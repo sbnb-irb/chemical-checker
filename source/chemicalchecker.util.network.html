@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>chemicalchecker.util.network package &mdash; chemicalchecker 1.0.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=fa44fd50" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=19f00094" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/logo.css?v=fc604eda" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/overrides.css?v=466af0f7" />
+
+  
+    <link rel="shortcut icon" href="../_static/favicon.ico"/>
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="../_static/documentation_options.js?v=8d563738"></script>
+        <script src="../_static/doctools.js?v=888ff710"></script>
+        <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html">
+            
+              <img src="../_static/logo.svg" class="logo" alt="Logo"/>
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../manifesto.html">Chemical Checker Manifesto</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../sources.html">Datasets</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../signaturization.html">Signaturization</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">chemicalchecker</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">chemicalchecker.util.network package</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/source/chemicalchecker.util.network.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="module-chemicalchecker.util.network">
+<span id="chemicalchecker-util-network-package"></span><h1>chemicalchecker.util.network package<a class="headerlink" href="#module-chemicalchecker.util.network" title="Link to this heading"></a></h1>
+<p>Network representations.</p>
+<p>Each class provides mean of loading and accessing a network/graph.</p>
+<blockquote>
+<div><ul class="simple">
+<li><p><strong>NetworkX</strong>: <a class="reference internal" href="chemicalchecker.util.network.network.html#chemicalchecker.util.network.network.NetworkxNetwork" title="chemicalchecker.util.network.network.NetworkxNetwork"><code class="xref py py-mod docutils literal notranslate"><span class="pre">NetworkxNetwork</span></code></a>
+Wrapper around the pure Python
+<a class="reference external" href="https://networkx.github.io/">NetworkX package</a>. This is very easy to use
+but becomes too expensive in memory.</p></li>
+<li><p><strong>SNAPNetwork</strong>: <a class="reference internal" href="chemicalchecker.util.network.network.html#chemicalchecker.util.network.network.SNAPNetwork" title="chemicalchecker.util.network.network.SNAPNetwork"><code class="xref py py-mod docutils literal notranslate"><span class="pre">SNAPNetwork</span></code></a>
+Wrapper around the C++/Python-binded
+<a class="reference external" href="https://github.com/snap-stanford/snap">SNAP library</a>. Scales to large
+network with millions of nodes and billions od edges.</p></li>
+<li><p><strong>HotnetNetwork</strong>:
+<a class="reference internal" href="chemicalchecker.util.network.network.html#chemicalchecker.util.network.network.HotnetNetwork" title="chemicalchecker.util.network.network.HotnetNetwork"><code class="xref py py-mod docutils literal notranslate"><span class="pre">HotnetNetwork</span></code></a>
+Network implementation that is suited for
+<a class="reference external" href="https://github.com/raphael-group/hotnet2">HotNet2 module</a>.</p></li>
+<li><p><strong>MultiEdgeNetwork</strong>:
+<a class="reference internal" href="chemicalchecker.util.network.network.html#chemicalchecker.util.network.network.MultiEdgeNetwork" title="chemicalchecker.util.network.network.MultiEdgeNetwork"><code class="xref py py-mod docutils literal notranslate"><span class="pre">MultiEdgeNetwork</span></code></a>
+experimental, multi edge and multi mode in SNAP.</p></li>
+</ul>
+</div></blockquote>
+<section id="submodules">
+<h2>Submodules<a class="headerlink" href="#submodules" title="Link to this heading"></a></h2>
+<div class="toctree-wrapper compound">
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="chemicalchecker.util.network.network.html">chemicalchecker.util.network.network module</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="chemicalchecker.util.network.network.html#chemicalchecker.util.network.network.HotnetNetwork"><code class="docutils literal notranslate"><span class="pre">HotnetNetwork</span></code></a><ul>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.network.network.html#chemicalchecker.util.network.network.HotnetNetwork.prepare"><code class="docutils literal notranslate"><span class="pre">HotnetNetwork.prepare()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="chemicalchecker.util.network.network.html#chemicalchecker.util.network.network.MultiEdgeNetwork"><code class="docutils literal notranslate"><span class="pre">MultiEdgeNetwork</span></code></a><ul>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.network.network.html#chemicalchecker.util.network.network.MultiEdgeNetwork.edges"><code class="docutils literal notranslate"><span class="pre">MultiEdgeNetwork.edges()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.network.network.html#chemicalchecker.util.network.network.MultiEdgeNetwork.has_edge"><code class="docutils literal notranslate"><span class="pre">MultiEdgeNetwork.has_edge()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.network.network.html#chemicalchecker.util.network.network.MultiEdgeNetwork.neighbors"><code class="docutils literal notranslate"><span class="pre">MultiEdgeNetwork.neighbors()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.network.network.html#chemicalchecker.util.network.network.MultiEdgeNetwork.nodes"><code class="docutils literal notranslate"><span class="pre">MultiEdgeNetwork.nodes()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.network.network.html#chemicalchecker.util.network.network.MultiEdgeNetwork.out_degree"><code class="docutils literal notranslate"><span class="pre">MultiEdgeNetwork.out_degree()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.network.network.html#chemicalchecker.util.network.network.MultiEdgeNetwork.print_edges"><code class="docutils literal notranslate"><span class="pre">MultiEdgeNetwork.print_edges()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.network.network.html#chemicalchecker.util.network.network.MultiEdgeNetwork.print_nodes"><code class="docutils literal notranslate"><span class="pre">MultiEdgeNetwork.print_nodes()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="chemicalchecker.util.network.network.html#chemicalchecker.util.network.network.NetworkxNetwork"><code class="docutils literal notranslate"><span class="pre">NetworkxNetwork</span></code></a><ul>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.network.network.html#chemicalchecker.util.network.network.NetworkxNetwork.edges"><code class="docutils literal notranslate"><span class="pre">NetworkxNetwork.edges()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.network.network.html#chemicalchecker.util.network.network.NetworkxNetwork.get_node"><code class="docutils literal notranslate"><span class="pre">NetworkxNetwork.get_node()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.network.network.html#chemicalchecker.util.network.network.NetworkxNetwork.has_edge"><code class="docutils literal notranslate"><span class="pre">NetworkxNetwork.has_edge()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.network.network.html#chemicalchecker.util.network.network.NetworkxNetwork.neighbors"><code class="docutils literal notranslate"><span class="pre">NetworkxNetwork.neighbors()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.network.network.html#chemicalchecker.util.network.network.NetworkxNetwork.nodes"><code class="docutils literal notranslate"><span class="pre">NetworkxNetwork.nodes</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="chemicalchecker.util.network.network.html#chemicalchecker.util.network.network.SNAPNetwork"><code class="docutils literal notranslate"><span class="pre">SNAPNetwork</span></code></a><ul>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.network.network.html#chemicalchecker.util.network.network.SNAPNetwork.edges"><code class="docutils literal notranslate"><span class="pre">SNAPNetwork.edges()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.network.network.html#chemicalchecker.util.network.network.SNAPNetwork.from_file"><code class="docutils literal notranslate"><span class="pre">SNAPNetwork.from_file()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.network.network.html#chemicalchecker.util.network.network.SNAPNetwork.has_edge"><code class="docutils literal notranslate"><span class="pre">SNAPNetwork.has_edge()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.network.network.html#chemicalchecker.util.network.network.SNAPNetwork.neighbors"><code class="docutils literal notranslate"><span class="pre">SNAPNetwork.neighbors()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.network.network.html#chemicalchecker.util.network.network.SNAPNetwork.nodes"><code class="docutils literal notranslate"><span class="pre">SNAPNetwork.nodes()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.network.network.html#chemicalchecker.util.network.network.SNAPNetwork.out_degree"><code class="docutils literal notranslate"><span class="pre">SNAPNetwork.out_degree()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.network.network.html#chemicalchecker.util.network.network.SNAPNetwork.print_edges"><code class="docutils literal notranslate"><span class="pre">SNAPNetwork.print_edges()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.network.network.html#chemicalchecker.util.network.network.SNAPNetwork.print_nodes"><code class="docutils literal notranslate"><span class="pre">SNAPNetwork.print_nodes()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.network.network.html#chemicalchecker.util.network.network.SNAPNetwork.save"><code class="docutils literal notranslate"><span class="pre">SNAPNetwork.save()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.network.network.html#chemicalchecker.util.network.network.SNAPNetwork.stats_toJSON"><code class="docutils literal notranslate"><span class="pre">SNAPNetwork.stats_toJSON()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</div>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2020, SBNB.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

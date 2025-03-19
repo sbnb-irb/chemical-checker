@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>chemicalchecker.core.signature_data module &mdash; chemicalchecker 1.0.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=fa44fd50" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=19f00094" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/logo.css?v=fc604eda" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/overrides.css?v=466af0f7" />
+
+  
+    <link rel="shortcut icon" href="../_static/favicon.ico"/>
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="../_static/documentation_options.js?v=8d563738"></script>
+        <script src="../_static/doctools.js?v=888ff710"></script>
+        <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html">
+            
+              <img src="../_static/logo.svg" class="logo" alt="Logo"/>
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../manifesto.html">Chemical Checker Manifesto</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../sources.html">Datasets</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../signaturization.html">Signaturization</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">chemicalchecker</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">chemicalchecker.core.signature_data module</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/source/chemicalchecker.core.signature_data.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="module-chemicalchecker.core.signature_data">
+<span id="chemicalchecker-core-signature-data-module"></span><h1>chemicalchecker.core.signature_data module<a class="headerlink" href="#module-chemicalchecker.core.signature_data" title="Link to this heading"></a></h1>
+<p>Signature data.</p>
+<p>This class handles the <code class="docutils literal notranslate"><span class="pre">HDF5</span></code> file internal organization. It offers shortcut
+attributes to read from file (e.g. <code class="docutils literal notranslate"><span class="pre">sign.keys</span></code> or accessing signature with
+brackets [:] operator). It expose utility methods to fetch, stack, copy
+check for consistency, index, subsample or map signatures.</p>
+<dl class="py class">
+<dt class="sig sig-object py" id="chemicalchecker.core.signature_data.DataSignature">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">DataSignature</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data_path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ds_data</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'V'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">keys_name</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'keys'</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/chemicalchecker/core/signature_data.html#DataSignature"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#chemicalchecker.core.signature_data.DataSignature" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>DataSignature class.</p>
+<p>Initialize a DataSignature instance.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="chemicalchecker.core.signature_data.DataSignature.__getitem__">
+<span class="sig-name descname"><span class="pre">__getitem__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">key</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/chemicalchecker/core/signature_data.html#DataSignature.__getitem__"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#chemicalchecker.core.signature_data.DataSignature.__getitem__" title="Link to this definition"></a></dt>
+<dd><p>Return the vector corresponding to the key.</p>
+<p>The key can be a string (then it’s mapped though self.keys) or and
+int.
+Works fast with bisect, but should return None if the key is not in
+keys (ideally, keep a set to do this).</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="chemicalchecker.core.signature_data.DataSignature.__iter__">
+<span class="sig-name descname"><span class="pre">__iter__</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/chemicalchecker/core/signature_data.html#DataSignature.__iter__"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#chemicalchecker.core.signature_data.DataSignature.__iter__" title="Link to this definition"></a></dt>
+<dd><p>By default iterate on signatures V.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="chemicalchecker.core.signature_data.DataSignature.add_datasets">
+<span class="sig-name descname"><span class="pre">add_datasets</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data_dict</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">overwrite</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">chunks</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">compression</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/chemicalchecker/core/signature_data.html#DataSignature.add_datasets"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#chemicalchecker.core.signature_data.DataSignature.add_datasets" title="Link to this definition"></a></dt>
+<dd><p>Add dataset to a H5</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="chemicalchecker.core.signature_data.DataSignature.apply_mappings">
+<span class="sig-name descname"><span class="pre">apply_mappings</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">out_file</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mappings</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/chemicalchecker/core/signature_data.html#DataSignature.apply_mappings"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#chemicalchecker.core.signature_data.DataSignature.apply_mappings" title="Link to this definition"></a></dt>
+<dd><p>Map signature throught mappings.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="chemicalchecker.core.signature_data.DataSignature.as_dataframe">
+<span class="sig-name descname"><span class="pre">as_dataframe</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/chemicalchecker/core/signature_data.html#DataSignature.as_dataframe"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#chemicalchecker.core.signature_data.DataSignature.as_dataframe" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="chemicalchecker.core.signature_data.DataSignature.check_mappings">
+<span class="sig-name descname"><span class="pre">check_mappings</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/chemicalchecker/core/signature_data.html#DataSignature.check_mappings"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#chemicalchecker.core.signature_data.DataSignature.check_mappings" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="chemicalchecker.core.signature_data.DataSignature.chunk_iter">
+<span class="sig-name descname"><span class="pre">chunk_iter</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">key</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">chunk_size</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">axis</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">chunk</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">bar</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/chemicalchecker/core/signature_data.html#DataSignature.chunk_iter"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#chemicalchecker.core.signature_data.DataSignature.chunk_iter" title="Link to this definition"></a></dt>
+<dd><p>Iterator on chunks of data</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="chemicalchecker.core.signature_data.DataSignature.chunker">
+<span class="sig-name descname"><span class="pre">chunker</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">2000</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/chemicalchecker/core/signature_data.html#DataSignature.chunker"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#chemicalchecker.core.signature_data.DataSignature.chunker" title="Link to this definition"></a></dt>
+<dd><p>Iterate on signatures.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="chemicalchecker.core.signature_data.DataSignature.clear">
+<span class="sig-name descname"><span class="pre">clear</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/chemicalchecker/core/signature_data.html#DataSignature.clear"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#chemicalchecker.core.signature_data.DataSignature.clear" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="chemicalchecker.core.signature_data.DataSignature.close_hdf5">
+<span class="sig-name descname"><span class="pre">close_hdf5</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/chemicalchecker/core/signature_data.html#DataSignature.close_hdf5"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#chemicalchecker.core.signature_data.DataSignature.close_hdf5" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="chemicalchecker.core.signature_data.DataSignature.compute_distance_pvalues">
+<span class="sig-name descname"><span class="pre">compute_distance_pvalues</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">bg_file</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">metric</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sample_pairs</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">unflat</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">memory_safe</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">limit_inks</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/chemicalchecker/core/signature_data.html#DataSignature.compute_distance_pvalues"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#chemicalchecker.core.signature_data.DataSignature.compute_distance_pvalues" title="Link to this definition"></a></dt>
+<dd><p>Compute the distance pvalues according to the selected metric.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>bg_file</strong> (<em>Str</em>) – The file where to store the distances.</p></li>
+<li><p><strong>metric</strong> (<em>str</em>) – the metric name (cosine or euclidean).</p></li>
+<li><p><strong>sample_pairs</strong> (<em>int</em>) – Amount of pairs for distance calculation.</p></li>
+<li><p><strong>unflat</strong> (<em>bool</em>) – Remove flat regions whenever we observe them.</p></li>
+<li><p><strong>memory_safe</strong> (<em>bool</em>) – Computing distances is much faster if we can
+load the full matrix in memory.</p></li>
+<li><p><strong>limit_inks</strong> (<em>list</em>) – Compute distances only for this subset on
+inchikeys.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Dictionary with distances and Pvalues</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>bg_distances(dict)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="chemicalchecker.core.signature_data.DataSignature.consistency_check">
+<span class="sig-name descname"><span class="pre">consistency_check</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/chemicalchecker/core/signature_data.html#DataSignature.consistency_check"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#chemicalchecker.core.signature_data.DataSignature.consistency_check" title="Link to this definition"></a></dt>
+<dd><p>Check that signature is valid.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="chemicalchecker.core.signature_data.DataSignature.copy_from">
+<span class="sig-name descname"><span class="pre">copy_from</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sign</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">key</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">chunk</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/chemicalchecker/core/signature_data.html#DataSignature.copy_from"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#chemicalchecker.core.signature_data.DataSignature.copy_from" title="Link to this definition"></a></dt>
+<dd><p>Copy dataset ‘key’ to current signature.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>sign</strong> (<em>SignatureBase</em>) – The source signature.</p></li>
+<li><p><strong>key</strong> (<em>str</em>) – The dataset to copy from.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="chemicalchecker.core.signature_data.DataSignature.data">
+<span class="sig-name descname"><span class="pre">data</span></span><a class="headerlink" href="#chemicalchecker.core.signature_data.DataSignature.data" title="Link to this definition"></a></dt>
+<dd><p>Decorator for lazily loading attributes.</p>
+<p>With this, the call to a class function becomes an attribute
+myobject.function and NOT myobject.function()
+The attribute is calculated when the function is called and stored
+as a property for later speedups.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="chemicalchecker.core.signature_data.DataSignature.data_type">
+<span class="sig-name descname"><span class="pre">data_type</span></span><a class="headerlink" href="#chemicalchecker.core.signature_data.DataSignature.data_type" title="Link to this definition"></a></dt>
+<dd><p>Decorator for lazily loading attributes.</p>
+<p>With this, the call to a class function becomes an attribute
+myobject.function and NOT myobject.function()
+The attribute is calculated when the function is called and stored
+as a property for later speedups.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="chemicalchecker.core.signature_data.DataSignature.dataloader">
+<span class="sig-name descname"><span class="pre">dataloader</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">batch_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">32</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_workers</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">shuffle</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">weak_shuffle</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">drop_last</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/chemicalchecker/core/signature_data.html#DataSignature.dataloader"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#chemicalchecker.core.signature_data.DataSignature.dataloader" title="Link to this definition"></a></dt>
+<dd><p>Return a pytorch DataLoader object for quick signature iteration.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="chemicalchecker.core.signature_data.DataSignature.date">
+<span class="sig-name descname"><span class="pre">date</span></span><a class="headerlink" href="#chemicalchecker.core.signature_data.DataSignature.date" title="Link to this definition"></a></dt>
+<dd><p>Decorator for lazily loading attributes.</p>
+<p>With this, the call to a class function becomes an attribute
+myobject.function and NOT myobject.function()
+The attribute is calculated when the function is called and stored
+as a property for later speedups.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="chemicalchecker.core.signature_data.DataSignature.export_features">
+<span class="sig-name descname"><span class="pre">export_features</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">destination</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'.'</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/chemicalchecker/core/signature_data.html#DataSignature.export_features"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#chemicalchecker.core.signature_data.DataSignature.export_features" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="chemicalchecker.core.signature_data.DataSignature.features">
+<span class="sig-name descname"><span class="pre">features</span></span><a class="headerlink" href="#chemicalchecker.core.signature_data.DataSignature.features" title="Link to this definition"></a></dt>
+<dd><p>Decorator for lazily loading attributes.</p>
+<p>With this, the call to a class function becomes an attribute
+myobject.function and NOT myobject.function()
+The attribute is calculated when the function is called and stored
+as a property for later speedups.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="chemicalchecker.core.signature_data.DataSignature.filter_h5_dataset">
+<span class="sig-name descname"><span class="pre">filter_h5_dataset</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">key</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mask</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">axis</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">chunk_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1000</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/chemicalchecker/core/signature_data.html#DataSignature.filter_h5_dataset"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#chemicalchecker.core.signature_data.DataSignature.filter_h5_dataset" title="Link to this definition"></a></dt>
+<dd><p>Apply a maks to a dataset, dropping columns or rows.</p>
+<p>key (str): The H5 dataset to filter.
+mask (np.array): A bool one dimensional mask array. True values will</p>
+<blockquote>
+<div><p>be kept.</p>
+</div></blockquote>
+<p>axis (int): Wether the mask refers to rows (0) or columns (1).</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="chemicalchecker.core.signature_data.DataSignature.generator_fn">
+<span class="sig-name descname"><span class="pre">generator_fn</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">weak_shuffle</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">batch_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/chemicalchecker/core/signature_data.html#DataSignature.generator_fn"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#chemicalchecker.core.signature_data.DataSignature.generator_fn" title="Link to this definition"></a></dt>
+<dd><p>Return the generator function that we can query for batches.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="chemicalchecker.core.signature_data.DataSignature.get_h5_dataset">
+<span class="sig-name descname"><span class="pre">get_h5_dataset</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">h5_dataset_name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mask</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/chemicalchecker/core/signature_data.html#DataSignature.get_h5_dataset"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#chemicalchecker.core.signature_data.DataSignature.get_h5_dataset" title="Link to this definition"></a></dt>
+<dd><p>Get a specific dataset in the signature.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="chemicalchecker.core.signature_data.DataSignature.get_vectors">
+<span class="sig-name descname"><span class="pre">get_vectors</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">keys</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">include_nan</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dataset_name</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'V'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">output_missing</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/chemicalchecker/core/signature_data.html#DataSignature.get_vectors"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#chemicalchecker.core.signature_data.DataSignature.get_vectors" title="Link to this definition"></a></dt>
+<dd><p>Get vectors for a list of keys, sorted by default.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>keys</strong> (<em>list</em>) – a List of string, only the overlapping subset to the
+signature keys is considered.</p></li>
+<li><p><strong>include_nan</strong> (<em>bool</em>) – whether to include requested but absent
+molecule signatures as NaNs.</p></li>
+<li><p><strong>dataset_name</strong> (<em>str</em>) – return any dataset in the h5 which is organized
+by sorted keys.</p></li>
+<li><p><strong>output_missing</strong> (<em>bool</em>) – whether to include the list of missing keys from query as a third output argument</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="chemicalchecker.core.signature_data.DataSignature.get_vectors_lite">
+<span class="sig-name descname"><span class="pre">get_vectors_lite</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">keys</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">chunk_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">2000</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">chunk_above</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">10000</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/chemicalchecker/core/signature_data.html#DataSignature.get_vectors_lite"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#chemicalchecker.core.signature_data.DataSignature.get_vectors_lite" title="Link to this definition"></a></dt>
+<dd><p>Iterate on signatures.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="chemicalchecker.core.signature_data.DataSignature.h5_str">
+<em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">h5_str</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">lst</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/chemicalchecker/core/signature_data.html#DataSignature.h5_str"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#chemicalchecker.core.signature_data.DataSignature.h5_str" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="chemicalchecker.core.signature_data.DataSignature.hstack_signatures">
+<em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">hstack_signatures</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sign_list</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">destination</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">chunk_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1000</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">aggregate_keys</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/chemicalchecker/core/signature_data.html#DataSignature.hstack_signatures"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#chemicalchecker.core.signature_data.DataSignature.hstack_signatures" title="Link to this definition"></a></dt>
+<dd><p>Merge horizontally a list of signatures.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="chemicalchecker.core.signature_data.DataSignature.index">
+<span class="sig-name descname"><span class="pre">index</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">key</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/chemicalchecker/core/signature_data.html#DataSignature.index"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#chemicalchecker.core.signature_data.DataSignature.index" title="Link to this definition"></a></dt>
+<dd><p>Give the index according to the key.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>key</strong> (<em>str</em>) – the key to search index in the matrix.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Index in the matrix</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>index(int)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="chemicalchecker.core.signature_data.DataSignature.info_h5">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">info_h5</span></span><a class="headerlink" href="#chemicalchecker.core.signature_data.DataSignature.info_h5" title="Link to this definition"></a></dt>
+<dd><p>Get the dictionary of dataset and shapes.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="chemicalchecker.core.signature_data.DataSignature.is_valid">
+<span class="sig-name descname"><span class="pre">is_valid</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/chemicalchecker/core/signature_data.html#DataSignature.is_valid"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#chemicalchecker.core.signature_data.DataSignature.is_valid" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="chemicalchecker.core.signature_data.DataSignature.keys">
+<span class="sig-name descname"><span class="pre">keys</span></span><a class="headerlink" href="#chemicalchecker.core.signature_data.DataSignature.keys" title="Link to this definition"></a></dt>
+<dd><p>Decorator for lazily loading attributes.</p>
+<p>With this, the call to a class function becomes an attribute
+myobject.function and NOT myobject.function()
+The attribute is calculated when the function is called and stored
+as a property for later speedups.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="chemicalchecker.core.signature_data.DataSignature.keys_raw">
+<span class="sig-name descname"><span class="pre">keys_raw</span></span><a class="headerlink" href="#chemicalchecker.core.signature_data.DataSignature.keys_raw" title="Link to this definition"></a></dt>
+<dd><p>Decorator for lazily loading attributes.</p>
+<p>With this, the call to a class function becomes an attribute
+myobject.function and NOT myobject.function()
+The attribute is calculated when the function is called and stored
+as a property for later speedups.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="chemicalchecker.core.signature_data.DataSignature.make_filtered_copy">
+<span class="sig-name descname"><span class="pre">make_filtered_copy</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">destination</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mask</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">include_all</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">data_file</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">datasets</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dst_datasets</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">chunk_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1000</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">compression</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/chemicalchecker/core/signature_data.html#DataSignature.make_filtered_copy"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#chemicalchecker.core.signature_data.DataSignature.make_filtered_copy" title="Link to this definition"></a></dt>
+<dd><p>Make a copy of applying a filtering mask on rows.</p>
+<p>destination (str): The destination file path.
+mask (bool array): A numpy mask array (e.g. result of <cite>np.isin</cite>)
+include_all (bool): Whether to copy other dataset (e.g. features,</p>
+<blockquote>
+<div><p>date, name…)</p>
+</div></blockquote>
+<dl class="simple">
+<dt>data_file (str): A specific file to copy (by default is the signature</dt><dd><p>h5)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="chemicalchecker.core.signature_data.DataSignature.mappings">
+<span class="sig-name descname"><span class="pre">mappings</span></span><a class="headerlink" href="#chemicalchecker.core.signature_data.DataSignature.mappings" title="Link to this definition"></a></dt>
+<dd><p>Decorator for lazily loading attributes.</p>
+<p>With this, the call to a class function becomes an attribute
+myobject.function and NOT myobject.function()
+The attribute is calculated when the function is called and stored
+as a property for later speedups.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="chemicalchecker.core.signature_data.DataSignature.name">
+<span class="sig-name descname"><span class="pre">name</span></span><a class="headerlink" href="#chemicalchecker.core.signature_data.DataSignature.name" title="Link to this definition"></a></dt>
+<dd><p>Decorator for lazily loading attributes.</p>
+<p>With this, the call to a class function becomes an attribute
+myobject.function and NOT myobject.function()
+The attribute is calculated when the function is called and stored
+as a property for later speedups.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="chemicalchecker.core.signature_data.DataSignature.open_hdf5">
+<span class="sig-name descname"><span class="pre">open_hdf5</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">mode</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'r'</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/chemicalchecker/core/signature_data.html#DataSignature.open_hdf5"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#chemicalchecker.core.signature_data.DataSignature.open_hdf5" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="chemicalchecker.core.signature_data.DataSignature.refresh">
+<span class="sig-name descname"><span class="pre">refresh</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/chemicalchecker/core/signature_data.html#DataSignature.refresh"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#chemicalchecker.core.signature_data.DataSignature.refresh" title="Link to this definition"></a></dt>
+<dd><p>Refresh all cached properties</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="chemicalchecker.core.signature_data.DataSignature.row_keys">
+<span class="sig-name descname"><span class="pre">row_keys</span></span><a class="headerlink" href="#chemicalchecker.core.signature_data.DataSignature.row_keys" title="Link to this definition"></a></dt>
+<dd><p>Decorator for lazily loading attributes.</p>
+<p>With this, the call to a class function becomes an attribute
+myobject.function and NOT myobject.function()
+The attribute is calculated when the function is called and stored
+as a property for later speedups.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="chemicalchecker.core.signature_data.DataSignature.set_data_h5_dataset">
+<span class="sig-name descname"><span class="pre">set_data_h5_dataset</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">key</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">index_range</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">values</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">axis</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/chemicalchecker/core/signature_data.html#DataSignature.set_data_h5_dataset"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#chemicalchecker.core.signature_data.DataSignature.set_data_h5_dataset" title="Link to this definition"></a></dt>
+<dd><p>Set data according to ndexes of cols or rows.</p>
+<p>key (str): The H5 dataset to set the new values.
+index_range (np.array): An integer one dimensional index array.
+values (np.array): the new values of the partition predeined in the index_range passed.
+axis (int): Wether the mask refers to rows (0) or columns (1).</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="chemicalchecker.core.signature_data.DataSignature.shape">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">shape</span></span><a class="headerlink" href="#chemicalchecker.core.signature_data.DataSignature.shape" title="Link to this definition"></a></dt>
+<dd><p>Get the V matrix shape.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="chemicalchecker.core.signature_data.DataSignature.size">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">size</span></span><a class="headerlink" href="#chemicalchecker.core.signature_data.DataSignature.size" title="Link to this definition"></a></dt>
+<dd><p>Get the V matrix size.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="chemicalchecker.core.signature_data.DataSignature.string_dtype">
+<em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">string_dtype</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/chemicalchecker/core/signature_data.html#DataSignature.string_dtype"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#chemicalchecker.core.signature_data.DataSignature.string_dtype" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="chemicalchecker.core.signature_data.DataSignature.subsample">
+<span class="sig-name descname"><span class="pre">subsample</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">n</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">seed</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">42</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/chemicalchecker/core/signature_data.html#DataSignature.subsample"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#chemicalchecker.core.signature_data.DataSignature.subsample" title="Link to this definition"></a></dt>
+<dd><p>Subsample from a signature without replacement.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>n</strong> (<em>int</em>) – Maximum number of samples (default=10000).</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>A (samples, features) matrix.
+keys(array): The list of keys.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>V(matrix)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="chemicalchecker.core.signature_data.DataSignature.unique_keys">
+<span class="sig-name descname"><span class="pre">unique_keys</span></span><a class="headerlink" href="#chemicalchecker.core.signature_data.DataSignature.unique_keys" title="Link to this definition"></a></dt>
+<dd><p>Decorator for lazily loading attributes.</p>
+<p>With this, the call to a class function becomes an attribute
+myobject.function and NOT myobject.function()
+The attribute is calculated when the function is called and stored
+as a property for later speedups.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="chemicalchecker.core.signature_data.DataSignature.vstack_signatures">
+<em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">vstack_signatures</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sign_list</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">destination</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">chunk_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">10000</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">vchunk_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">100</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/chemicalchecker/core/signature_data.html#DataSignature.vstack_signatures"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#chemicalchecker.core.signature_data.DataSignature.vstack_signatures" title="Link to this definition"></a></dt>
+<dd><p>Merge vertically a list of signatures.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="chemicalchecker.core.signature_data.RandomBatchSampler">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">RandomBatchSampler</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">dataset</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">batch_size</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/chemicalchecker/core/signature_data.html#RandomBatchSampler"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#chemicalchecker.core.signature_data.RandomBatchSampler" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">Sampler</span></code></p>
+<p>Sampling class to create random sequential batches of a dataset.</p>
+<p>E.g. if data is [1,2,3,4] with bs=2. Then first batch, [[1,2], [3,4]]
+then shuffle batches -&gt; [[3,4],[1,2]]
+This is useful for cases when you are interested in ‘weak shuffling’
+<a class="reference external" href="https://towardsdatascience.com/">https://towardsdatascience.com/</a>
+reading-h5-files-faster-with-pytorch-datasets-3ff86938cc</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>dataset</strong> (<em>torch.utils.data.Dataset</em>) – dataset you want to batch</p></li>
+<li><p><strong>batch_size</strong> (<em>int</em>) – batch size</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>generator object of shuffled batch indices</p>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2020, SBNB.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

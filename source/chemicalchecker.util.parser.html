@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>chemicalchecker.util.parser package &mdash; chemicalchecker 1.0.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=fa44fd50" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=19f00094" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/logo.css?v=fc604eda" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/overrides.css?v=466af0f7" />
+
+  
+    <link rel="shortcut icon" href="../_static/favicon.ico"/>
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="../_static/documentation_options.js?v=8d563738"></script>
+        <script src="../_static/doctools.js?v=888ff710"></script>
+        <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html">
+            
+              <img src="../_static/logo.svg" class="logo" alt="Logo"/>
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../manifesto.html">Chemical Checker Manifesto</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../sources.html">Datasets</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../signaturization.html">Signaturization</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">chemicalchecker</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">chemicalchecker.util.parser package</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/source/chemicalchecker.util.parser.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="module-chemicalchecker.util.parser">
+<span id="chemicalchecker-util-parser-package"></span><h1>chemicalchecker.util.parser package<a class="headerlink" href="#module-chemicalchecker.util.parser" title="Link to this heading"></a></h1>
+<p>Parsing utilities.</p>
+<p>Handle raw format and parse, convert, or calculate derived data in the
+desired format.</p>
+<section id="submodules">
+<h2>Submodules<a class="headerlink" href="#submodules" title="Link to this heading"></a></h2>
+<div class="toctree-wrapper compound">
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="chemicalchecker.util.parser.converter.html">chemicalchecker.util.parser.converter module</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="chemicalchecker.util.parser.converter.html#chemicalchecker.util.parser.converter.ConversionError"><code class="docutils literal notranslate"><span class="pre">ConversionError</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="chemicalchecker.util.parser.converter.html#chemicalchecker.util.parser.converter.Converter"><code class="docutils literal notranslate"><span class="pre">Converter</span></code></a><ul>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.parser.converter.html#chemicalchecker.util.parser.converter.Converter.chemical_name_to_inchi"><code class="docutils literal notranslate"><span class="pre">Converter.chemical_name_to_inchi()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.parser.converter.html#chemicalchecker.util.parser.converter.Converter.chemical_name_to_smiles"><code class="docutils literal notranslate"><span class="pre">Converter.chemical_name_to_smiles()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.parser.converter.html#chemicalchecker.util.parser.converter.Converter.ctd_to_smiles"><code class="docutils literal notranslate"><span class="pre">Converter.ctd_to_smiles()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.parser.converter.html#chemicalchecker.util.parser.converter.Converter.inchi_to_inchikey"><code class="docutils literal notranslate"><span class="pre">Converter.inchi_to_inchikey()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.parser.converter.html#chemicalchecker.util.parser.converter.Converter.inchi_to_mol"><code class="docutils literal notranslate"><span class="pre">Converter.inchi_to_mol()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.parser.converter.html#chemicalchecker.util.parser.converter.Converter.inchi_to_smiles"><code class="docutils literal notranslate"><span class="pre">Converter.inchi_to_smiles()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.parser.converter.html#chemicalchecker.util.parser.converter.Converter.inchikey_to_inchi"><code class="docutils literal notranslate"><span class="pre">Converter.inchikey_to_inchi()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.parser.converter.html#chemicalchecker.util.parser.converter.Converter.smiles_to_inchi"><code class="docutils literal notranslate"><span class="pre">Converter.smiles_to_inchi()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.parser.converter.html#chemicalchecker.util.parser.converter.Converter.smiles_to_scaffold"><code class="docutils literal notranslate"><span class="pre">Converter.smiles_to_scaffold()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="chemicalchecker.util.parser.data_calculator.html">chemicalchecker.util.parser.data_calculator module</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="chemicalchecker.util.parser.data_calculator.html#chemicalchecker.util.parser.data_calculator.DataCalculator"><code class="docutils literal notranslate"><span class="pre">DataCalculator</span></code></a><ul>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.parser.data_calculator.html#chemicalchecker.util.parser.data_calculator.DataCalculator.calc_fn"><code class="docutils literal notranslate"><span class="pre">DataCalculator.calc_fn()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.parser.data_calculator.html#chemicalchecker.util.parser.data_calculator.DataCalculator.chembl_target_predictions_v23_10um"><code class="docutils literal notranslate"><span class="pre">DataCalculator.chembl_target_predictions_v23_10um()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.parser.data_calculator.html#chemicalchecker.util.parser.data_calculator.DataCalculator.e3fp_3conf_1024"><code class="docutils literal notranslate"><span class="pre">DataCalculator.e3fp_3conf_1024()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.parser.data_calculator.html#chemicalchecker.util.parser.data_calculator.DataCalculator.e3fp_3conf_1024_parallel"><code class="docutils literal notranslate"><span class="pre">DataCalculator.e3fp_3conf_1024_parallel()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.parser.data_calculator.html#chemicalchecker.util.parser.data_calculator.DataCalculator.general_physchem_properties"><code class="docutils literal notranslate"><span class="pre">DataCalculator.general_physchem_properties()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.parser.data_calculator.html#chemicalchecker.util.parser.data_calculator.DataCalculator.maccs_keys_166"><code class="docutils literal notranslate"><span class="pre">DataCalculator.maccs_keys_166()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.parser.data_calculator.html#chemicalchecker.util.parser.data_calculator.DataCalculator.morgan_fp_r2_2048"><code class="docutils literal notranslate"><span class="pre">DataCalculator.morgan_fp_r2_2048()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.parser.data_calculator.html#chemicalchecker.util.parser.data_calculator.DataCalculator.murcko_1024_cframe_1024"><code class="docutils literal notranslate"><span class="pre">DataCalculator.murcko_1024_cframe_1024()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="chemicalchecker.util.parser.parser.html">chemicalchecker.util.parser.parser module</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="chemicalchecker.util.parser.parser.html#chemicalchecker.util.parser.parser.Parser"><code class="docutils literal notranslate"><span class="pre">Parser</span></code></a><ul>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.parser.parser.html#chemicalchecker.util.parser.parser.Parser.bindingdb"><code class="docutils literal notranslate"><span class="pre">Parser.bindingdb()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.parser.parser.html#chemicalchecker.util.parser.parser.Parser.biur_real"><code class="docutils literal notranslate"><span class="pre">Parser.biur_real()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.parser.parser.html#chemicalchecker.util.parser.parser.Parser.biur_virtual"><code class="docutils literal notranslate"><span class="pre">Parser.biur_virtual()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.parser.parser.html#chemicalchecker.util.parser.parser.Parser.chebi"><code class="docutils literal notranslate"><span class="pre">Parser.chebi()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.parser.parser.html#chemicalchecker.util.parser.parser.Parser.chembl"><code class="docutils literal notranslate"><span class="pre">Parser.chembl()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.parser.parser.html#chemicalchecker.util.parser.parser.Parser.cmaup"><code class="docutils literal notranslate"><span class="pre">Parser.cmaup()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.parser.parser.html#chemicalchecker.util.parser.parser.Parser.ctd"><code class="docutils literal notranslate"><span class="pre">Parser.ctd()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.parser.parser.html#chemicalchecker.util.parser.parser.Parser.drugbank"><code class="docutils literal notranslate"><span class="pre">Parser.drugbank()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.parser.parser.html#chemicalchecker.util.parser.parser.Parser.hmdb"><code class="docutils literal notranslate"><span class="pre">Parser.hmdb()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.parser.parser.html#chemicalchecker.util.parser.parser.Parser.kegg"><code class="docutils literal notranslate"><span class="pre">Parser.kegg()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.parser.parser.html#chemicalchecker.util.parser.parser.Parser.lincs"><code class="docutils literal notranslate"><span class="pre">Parser.lincs()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.parser.parser.html#chemicalchecker.util.parser.parser.Parser.morphlincs"><code class="docutils literal notranslate"><span class="pre">Parser.morphlincs()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.parser.parser.html#chemicalchecker.util.parser.parser.Parser.mosaic"><code class="docutils literal notranslate"><span class="pre">Parser.mosaic()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.parser.parser.html#chemicalchecker.util.parser.parser.Parser.nci60"><code class="docutils literal notranslate"><span class="pre">Parser.nci60()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.parser.parser.html#chemicalchecker.util.parser.parser.Parser.parse_fn"><code class="docutils literal notranslate"><span class="pre">Parser.parse_fn()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.parser.parser.html#chemicalchecker.util.parser.parser.Parser.pdb"><code class="docutils literal notranslate"><span class="pre">Parser.pdb()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.parser.parser.html#chemicalchecker.util.parser.parser.Parser.pharmacodb"><code class="docutils literal notranslate"><span class="pre">Parser.pharmacodb()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.parser.parser.html#chemicalchecker.util.parser.parser.Parser.repohub"><code class="docutils literal notranslate"><span class="pre">Parser.repohub()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.parser.parser.html#chemicalchecker.util.parser.parser.Parser.sider"><code class="docutils literal notranslate"><span class="pre">Parser.sider()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.parser.parser.html#chemicalchecker.util.parser.parser.Parser.smpdb"><code class="docutils literal notranslate"><span class="pre">Parser.smpdb()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.parser.parser.html#chemicalchecker.util.parser.parser.Parser.touchstone"><code class="docutils literal notranslate"><span class="pre">Parser.touchstone()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.parser.parser.html#chemicalchecker.util.parser.parser.Parser.zinc"><code class="docutils literal notranslate"><span class="pre">Parser.zinc()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</div>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2020, SBNB.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

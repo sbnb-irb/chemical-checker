@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>chemicalchecker.util.splitter package &mdash; chemicalchecker 1.0.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=fa44fd50" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=19f00094" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/logo.css?v=fc604eda" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/overrides.css?v=466af0f7" />
+
+  
+    <link rel="shortcut icon" href="../_static/favicon.ico"/>
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="../_static/documentation_options.js?v=8d563738"></script>
+        <script src="../_static/doctools.js?v=888ff710"></script>
+        <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html">
+            
+              <img src="../_static/logo.svg" class="logo" alt="Logo"/>
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../manifesto.html">Chemical Checker Manifesto</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../sources.html">Datasets</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../signaturization.html">Signaturization</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">chemicalchecker</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">chemicalchecker.util.splitter package</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/source/chemicalchecker.util.splitter.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="module-chemicalchecker.util.splitter">
+<span id="chemicalchecker-util-splitter-package"></span><h1>chemicalchecker.util.splitter package<a class="headerlink" href="#module-chemicalchecker.util.splitter" title="Link to this heading"></a></h1>
+<p>Dataset splitter.</p>
+<p>Classes in here allow creation and access train-test sets splits and expose
+the generator functions which tensorflow likes.</p>
+<section id="submodules">
+<h2>Submodules<a class="headerlink" href="#submodules" title="Link to this heading"></a></h2>
+<div class="toctree-wrapper compound">
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="chemicalchecker.util.splitter.ae_siam_traintest.html">chemicalchecker.util.splitter.ae_siam_traintest module</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="chemicalchecker.util.splitter.ae_siam_traintest.html#chemicalchecker.util.splitter.ae_siam_traintest.AE_SiameseTraintest"><code class="docutils literal notranslate"><span class="pre">AE_SiameseTraintest</span></code></a><ul>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.splitter.ae_siam_traintest.html#chemicalchecker.util.splitter.ae_siam_traintest.AE_SiameseTraintest.close"><code class="docutils literal notranslate"><span class="pre">AE_SiameseTraintest.close()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.splitter.ae_siam_traintest.html#chemicalchecker.util.splitter.ae_siam_traintest.AE_SiameseTraintest.generator_fn"><code class="docutils literal notranslate"><span class="pre">AE_SiameseTraintest.generator_fn()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.splitter.ae_siam_traintest.html#chemicalchecker.util.splitter.ae_siam_traintest.AE_SiameseTraintest.get_split_indeces"><code class="docutils literal notranslate"><span class="pre">AE_SiameseTraintest.get_split_indeces()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.splitter.ae_siam_traintest.html#chemicalchecker.util.splitter.ae_siam_traintest.AE_SiameseTraintest.get_split_names"><code class="docutils literal notranslate"><span class="pre">AE_SiameseTraintest.get_split_names()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.splitter.ae_siam_traintest.html#chemicalchecker.util.splitter.ae_siam_traintest.AE_SiameseTraintest.get_sw"><code class="docutils literal notranslate"><span class="pre">AE_SiameseTraintest.get_sw()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.splitter.ae_siam_traintest.html#chemicalchecker.util.splitter.ae_siam_traintest.AE_SiameseTraintest.get_x"><code class="docutils literal notranslate"><span class="pre">AE_SiameseTraintest.get_x()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.splitter.ae_siam_traintest.html#chemicalchecker.util.splitter.ae_siam_traintest.AE_SiameseTraintest.get_x_shapes"><code class="docutils literal notranslate"><span class="pre">AE_SiameseTraintest.get_x_shapes()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.splitter.ae_siam_traintest.html#chemicalchecker.util.splitter.ae_siam_traintest.AE_SiameseTraintest.get_xy"><code class="docutils literal notranslate"><span class="pre">AE_SiameseTraintest.get_xy()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.splitter.ae_siam_traintest.html#chemicalchecker.util.splitter.ae_siam_traintest.AE_SiameseTraintest.get_xy_shapes"><code class="docutils literal notranslate"><span class="pre">AE_SiameseTraintest.get_xy_shapes()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.splitter.ae_siam_traintest.html#chemicalchecker.util.splitter.ae_siam_traintest.AE_SiameseTraintest.open"><code class="docutils literal notranslate"><span class="pre">AE_SiameseTraintest.open()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.splitter.ae_siam_traintest.html#chemicalchecker.util.splitter.ae_siam_traintest.AE_SiameseTraintest.split_h5_blocks"><code class="docutils literal notranslate"><span class="pre">AE_SiameseTraintest.split_h5_blocks()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.splitter.ae_siam_traintest.html#chemicalchecker.util.splitter.ae_siam_traintest.AE_SiameseTraintest.sw_name_right"><code class="docutils literal notranslate"><span class="pre">AE_SiameseTraintest.sw_name_right</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="chemicalchecker.util.splitter.globalneighbortriplets.html">chemicalchecker.util.splitter.globalneighbortriplets module</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="chemicalchecker.util.splitter.globalneighbortriplets.html#chemicalchecker.util.splitter.globalneighbortriplets.GlobalNeighborTripletTraintest"><code class="docutils literal notranslate"><span class="pre">GlobalNeighborTripletTraintest</span></code></a><ul>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.splitter.globalneighbortriplets.html#chemicalchecker.util.splitter.globalneighbortriplets.GlobalNeighborTripletTraintest.acceptable_split"><code class="docutils literal notranslate"><span class="pre">GlobalNeighborTripletTraintest.acceptable_split()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.splitter.globalneighbortriplets.html#chemicalchecker.util.splitter.globalneighbortriplets.GlobalNeighborTripletTraintest.collisions"><code class="docutils literal notranslate"><span class="pre">GlobalNeighborTripletTraintest.collisions()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.splitter.globalneighbortriplets.html#chemicalchecker.util.splitter.globalneighbortriplets.GlobalNeighborTripletTraintest.collisions_all"><code class="docutils literal notranslate"><span class="pre">GlobalNeighborTripletTraintest.collisions_all()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.splitter.globalneighbortriplets.html#chemicalchecker.util.splitter.globalneighbortriplets.GlobalNeighborTripletTraintest.get_splits"><code class="docutils literal notranslate"><span class="pre">GlobalNeighborTripletTraintest.get_splits()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.splitter.globalneighbortriplets.html#chemicalchecker.util.splitter.globalneighbortriplets.GlobalNeighborTripletTraintest.read_across"><code class="docutils literal notranslate"><span class="pre">GlobalNeighborTripletTraintest.read_across()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.splitter.globalneighbortriplets.html#chemicalchecker.util.splitter.globalneighbortriplets.GlobalNeighborTripletTraintest.score_collisions"><code class="docutils literal notranslate"><span class="pre">GlobalNeighborTripletTraintest.score_collisions()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="chemicalchecker.util.splitter.neighborerror.html">chemicalchecker.util.splitter.neighborerror module</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="chemicalchecker.util.splitter.neighborerror.html#chemicalchecker.util.splitter.neighborerror.NeighborErrorTraintest"><code class="docutils literal notranslate"><span class="pre">NeighborErrorTraintest</span></code></a><ul>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.splitter.neighborerror.html#chemicalchecker.util.splitter.neighborerror.NeighborErrorTraintest.close"><code class="docutils literal notranslate"><span class="pre">NeighborErrorTraintest.close()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.splitter.neighborerror.html#chemicalchecker.util.splitter.neighborerror.NeighborErrorTraintest.create"><code class="docutils literal notranslate"><span class="pre">NeighborErrorTraintest.create()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.splitter.neighborerror.html#chemicalchecker.util.splitter.neighborerror.NeighborErrorTraintest.generator_fn"><code class="docutils literal notranslate"><span class="pre">NeighborErrorTraintest.generator_fn()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.splitter.neighborerror.html#chemicalchecker.util.splitter.neighborerror.NeighborErrorTraintest.get_all_p"><code class="docutils literal notranslate"><span class="pre">NeighborErrorTraintest.get_all_p()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.splitter.neighborerror.html#chemicalchecker.util.splitter.neighborerror.NeighborErrorTraintest.get_all_x"><code class="docutils literal notranslate"><span class="pre">NeighborErrorTraintest.get_all_x()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.splitter.neighborerror.html#chemicalchecker.util.splitter.neighborerror.NeighborErrorTraintest.get_all_y"><code class="docutils literal notranslate"><span class="pre">NeighborErrorTraintest.get_all_y()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.splitter.neighborerror.html#chemicalchecker.util.splitter.neighborerror.NeighborErrorTraintest.get_split_indeces"><code class="docutils literal notranslate"><span class="pre">NeighborErrorTraintest.get_split_indeces()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.splitter.neighborerror.html#chemicalchecker.util.splitter.neighborerror.NeighborErrorTraintest.get_split_names"><code class="docutils literal notranslate"><span class="pre">NeighborErrorTraintest.get_split_names()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.splitter.neighborerror.html#chemicalchecker.util.splitter.neighborerror.NeighborErrorTraintest.get_t"><code class="docutils literal notranslate"><span class="pre">NeighborErrorTraintest.get_t()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.splitter.neighborerror.html#chemicalchecker.util.splitter.neighborerror.NeighborErrorTraintest.get_ty_shapes"><code class="docutils literal notranslate"><span class="pre">NeighborErrorTraintest.get_ty_shapes()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.splitter.neighborerror.html#chemicalchecker.util.splitter.neighborerror.NeighborErrorTraintest.get_xy_shapes"><code class="docutils literal notranslate"><span class="pre">NeighborErrorTraintest.get_xy_shapes()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.splitter.neighborerror.html#chemicalchecker.util.splitter.neighborerror.NeighborErrorTraintest.get_y"><code class="docutils literal notranslate"><span class="pre">NeighborErrorTraintest.get_y()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.splitter.neighborerror.html#chemicalchecker.util.splitter.neighborerror.NeighborErrorTraintest.open"><code class="docutils literal notranslate"><span class="pre">NeighborErrorTraintest.open()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="chemicalchecker.util.splitter.neighborpair.html">chemicalchecker.util.splitter.neighborpair module</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="chemicalchecker.util.splitter.neighborpair.html#chemicalchecker.util.splitter.neighborpair.NeighborPairTraintest"><code class="docutils literal notranslate"><span class="pre">NeighborPairTraintest</span></code></a><ul>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.splitter.neighborpair.html#chemicalchecker.util.splitter.neighborpair.NeighborPairTraintest.close"><code class="docutils literal notranslate"><span class="pre">NeighborPairTraintest.close()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.splitter.neighborpair.html#chemicalchecker.util.splitter.neighborpair.NeighborPairTraintest.create"><code class="docutils literal notranslate"><span class="pre">NeighborPairTraintest.create()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.splitter.neighborpair.html#chemicalchecker.util.splitter.neighborpair.NeighborPairTraintest.generator_fn"><code class="docutils literal notranslate"><span class="pre">NeighborPairTraintest.generator_fn()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.splitter.neighborpair.html#chemicalchecker.util.splitter.neighborpair.NeighborPairTraintest.get_all_p"><code class="docutils literal notranslate"><span class="pre">NeighborPairTraintest.get_all_p()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.splitter.neighborpair.html#chemicalchecker.util.splitter.neighborpair.NeighborPairTraintest.get_all_x"><code class="docutils literal notranslate"><span class="pre">NeighborPairTraintest.get_all_x()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.splitter.neighborpair.html#chemicalchecker.util.splitter.neighborpair.NeighborPairTraintest.get_all_y"><code class="docutils literal notranslate"><span class="pre">NeighborPairTraintest.get_all_y()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.splitter.neighborpair.html#chemicalchecker.util.splitter.neighborpair.NeighborPairTraintest.get_p"><code class="docutils literal notranslate"><span class="pre">NeighborPairTraintest.get_p()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.splitter.neighborpair.html#chemicalchecker.util.splitter.neighborpair.NeighborPairTraintest.get_py"><code class="docutils literal notranslate"><span class="pre">NeighborPairTraintest.get_py()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.splitter.neighborpair.html#chemicalchecker.util.splitter.neighborpair.NeighborPairTraintest.get_py_shapes"><code class="docutils literal notranslate"><span class="pre">NeighborPairTraintest.get_py_shapes()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.splitter.neighborpair.html#chemicalchecker.util.splitter.neighborpair.NeighborPairTraintest.get_split_indeces"><code class="docutils literal notranslate"><span class="pre">NeighborPairTraintest.get_split_indeces()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.splitter.neighborpair.html#chemicalchecker.util.splitter.neighborpair.NeighborPairTraintest.get_split_names"><code class="docutils literal notranslate"><span class="pre">NeighborPairTraintest.get_split_names()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.splitter.neighborpair.html#chemicalchecker.util.splitter.neighborpair.NeighborPairTraintest.get_xy_shapes"><code class="docutils literal notranslate"><span class="pre">NeighborPairTraintest.get_xy_shapes()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.splitter.neighborpair.html#chemicalchecker.util.splitter.neighborpair.NeighborPairTraintest.get_y"><code class="docutils literal notranslate"><span class="pre">NeighborPairTraintest.get_y()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.splitter.neighborpair.html#chemicalchecker.util.splitter.neighborpair.NeighborPairTraintest.open"><code class="docutils literal notranslate"><span class="pre">NeighborPairTraintest.open()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="chemicalchecker.util.splitter.neighbortriplet.html">chemicalchecker.util.splitter.neighbortriplet module</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="chemicalchecker.util.splitter.neighbortriplet.html#chemicalchecker.util.splitter.neighbortriplet.AdriaTripletSampler"><code class="docutils literal notranslate"><span class="pre">AdriaTripletSampler</span></code></a><ul>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.splitter.neighbortriplet.html#chemicalchecker.util.splitter.neighbortriplet.AdriaTripletSampler.generate_triplets"><code class="docutils literal notranslate"><span class="pre">AdriaTripletSampler.generate_triplets()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="chemicalchecker.util.splitter.neighbortriplet.html#chemicalchecker.util.splitter.neighbortriplet.BaseTripletSampler"><code class="docutils literal notranslate"><span class="pre">BaseTripletSampler</span></code></a><ul>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.splitter.neighbortriplet.html#chemicalchecker.util.splitter.neighbortriplet.BaseTripletSampler.get_split_indeces"><code class="docutils literal notranslate"><span class="pre">BaseTripletSampler.get_split_indeces()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.splitter.neighbortriplet.html#chemicalchecker.util.splitter.neighbortriplet.BaseTripletSampler.save_triplets"><code class="docutils literal notranslate"><span class="pre">BaseTripletSampler.save_triplets()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="chemicalchecker.util.splitter.neighbortriplet.html#chemicalchecker.util.splitter.neighbortriplet.OldTripletSampler"><code class="docutils literal notranslate"><span class="pre">OldTripletSampler</span></code></a><ul>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.splitter.neighbortriplet.html#chemicalchecker.util.splitter.neighbortriplet.OldTripletSampler.generate_triplets"><code class="docutils literal notranslate"><span class="pre">OldTripletSampler.generate_triplets()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="chemicalchecker.util.splitter.neighbortriplet.html#chemicalchecker.util.splitter.neighbortriplet.PrecomputedTripletSampler"><code class="docutils literal notranslate"><span class="pre">PrecomputedTripletSampler</span></code></a><ul>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.splitter.neighbortriplet.html#chemicalchecker.util.splitter.neighbortriplet.PrecomputedTripletSampler.generate_triplets"><code class="docutils literal notranslate"><span class="pre">PrecomputedTripletSampler.generate_triplets()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="chemicalchecker.util.splitter.neighbortriplet.html#chemicalchecker.util.splitter.neighbortriplet.TripletIterator"><code class="docutils literal notranslate"><span class="pre">TripletIterator</span></code></a><ul>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.splitter.neighbortriplet.html#chemicalchecker.util.splitter.neighbortriplet.TripletIterator.close"><code class="docutils literal notranslate"><span class="pre">TripletIterator.close()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.splitter.neighbortriplet.html#chemicalchecker.util.splitter.neighbortriplet.TripletIterator.generator_fn"><code class="docutils literal notranslate"><span class="pre">TripletIterator.generator_fn()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.splitter.neighbortriplet.html#chemicalchecker.util.splitter.neighbortriplet.TripletIterator.get_all_p"><code class="docutils literal notranslate"><span class="pre">TripletIterator.get_all_p()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.splitter.neighbortriplet.html#chemicalchecker.util.splitter.neighbortriplet.TripletIterator.get_all_x"><code class="docutils literal notranslate"><span class="pre">TripletIterator.get_all_x()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.splitter.neighbortriplet.html#chemicalchecker.util.splitter.neighbortriplet.TripletIterator.get_all_y"><code class="docutils literal notranslate"><span class="pre">TripletIterator.get_all_y()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.splitter.neighbortriplet.html#chemicalchecker.util.splitter.neighbortriplet.TripletIterator.get_split_names"><code class="docutils literal notranslate"><span class="pre">TripletIterator.get_split_names()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.splitter.neighbortriplet.html#chemicalchecker.util.splitter.neighbortriplet.TripletIterator.get_t"><code class="docutils literal notranslate"><span class="pre">TripletIterator.get_t()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.splitter.neighbortriplet.html#chemicalchecker.util.splitter.neighbortriplet.TripletIterator.get_ty_shapes"><code class="docutils literal notranslate"><span class="pre">TripletIterator.get_ty_shapes()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.splitter.neighbortriplet.html#chemicalchecker.util.splitter.neighbortriplet.TripletIterator.get_x_columns"><code class="docutils literal notranslate"><span class="pre">TripletIterator.get_x_columns()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.splitter.neighbortriplet.html#chemicalchecker.util.splitter.neighbortriplet.TripletIterator.get_xy_shapes"><code class="docutils literal notranslate"><span class="pre">TripletIterator.get_xy_shapes()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.splitter.neighbortriplet.html#chemicalchecker.util.splitter.neighbortriplet.TripletIterator.get_y"><code class="docutils literal notranslate"><span class="pre">TripletIterator.get_y()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.splitter.neighbortriplet.html#chemicalchecker.util.splitter.neighbortriplet.TripletIterator.open"><code class="docutils literal notranslate"><span class="pre">TripletIterator.open()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="chemicalchecker.util.splitter.pairtraintest.html">chemicalchecker.util.splitter.pairtraintest module</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="chemicalchecker.util.splitter.pairtraintest.html#chemicalchecker.util.splitter.pairtraintest.PairTraintest"><code class="docutils literal notranslate"><span class="pre">PairTraintest</span></code></a><ul>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.splitter.pairtraintest.html#chemicalchecker.util.splitter.pairtraintest.PairTraintest.close"><code class="docutils literal notranslate"><span class="pre">PairTraintest.close()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.splitter.pairtraintest.html#chemicalchecker.util.splitter.pairtraintest.PairTraintest.create"><code class="docutils literal notranslate"><span class="pre">PairTraintest.create()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.splitter.pairtraintest.html#chemicalchecker.util.splitter.pairtraintest.PairTraintest.generate_splits"><code class="docutils literal notranslate"><span class="pre">PairTraintest.generate_splits()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.splitter.pairtraintest.html#chemicalchecker.util.splitter.pairtraintest.PairTraintest.generator_fn"><code class="docutils literal notranslate"><span class="pre">PairTraintest.generator_fn()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.splitter.pairtraintest.html#chemicalchecker.util.splitter.pairtraintest.PairTraintest.get_all_p"><code class="docutils literal notranslate"><span class="pre">PairTraintest.get_all_p()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.splitter.pairtraintest.html#chemicalchecker.util.splitter.pairtraintest.PairTraintest.get_all_x1"><code class="docutils literal notranslate"><span class="pre">PairTraintest.get_all_x1()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.splitter.pairtraintest.html#chemicalchecker.util.splitter.pairtraintest.PairTraintest.get_all_x2"><code class="docutils literal notranslate"><span class="pre">PairTraintest.get_all_x2()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.splitter.pairtraintest.html#chemicalchecker.util.splitter.pairtraintest.PairTraintest.get_all_y"><code class="docutils literal notranslate"><span class="pre">PairTraintest.get_all_y()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.splitter.pairtraintest.html#chemicalchecker.util.splitter.pairtraintest.PairTraintest.get_p"><code class="docutils literal notranslate"><span class="pre">PairTraintest.get_p()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.splitter.pairtraintest.html#chemicalchecker.util.splitter.pairtraintest.PairTraintest.get_pos_neg"><code class="docutils literal notranslate"><span class="pre">PairTraintest.get_pos_neg()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.splitter.pairtraintest.html#chemicalchecker.util.splitter.pairtraintest.PairTraintest.get_py"><code class="docutils literal notranslate"><span class="pre">PairTraintest.get_py()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.splitter.pairtraintest.html#chemicalchecker.util.splitter.pairtraintest.PairTraintest.get_py_shapes"><code class="docutils literal notranslate"><span class="pre">PairTraintest.get_py_shapes()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.splitter.pairtraintest.html#chemicalchecker.util.splitter.pairtraintest.PairTraintest.get_split_indeces"><code class="docutils literal notranslate"><span class="pre">PairTraintest.get_split_indeces()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.splitter.pairtraintest.html#chemicalchecker.util.splitter.pairtraintest.PairTraintest.get_split_names"><code class="docutils literal notranslate"><span class="pre">PairTraintest.get_split_names()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.splitter.pairtraintest.html#chemicalchecker.util.splitter.pairtraintest.PairTraintest.get_xy_shapes"><code class="docutils literal notranslate"><span class="pre">PairTraintest.get_xy_shapes()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.splitter.pairtraintest.html#chemicalchecker.util.splitter.pairtraintest.PairTraintest.get_y"><code class="docutils literal notranslate"><span class="pre">PairTraintest.get_y()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.splitter.pairtraintest.html#chemicalchecker.util.splitter.pairtraintest.PairTraintest.open"><code class="docutils literal notranslate"><span class="pre">PairTraintest.open()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="chemicalchecker.util.splitter.traintest.html">chemicalchecker.util.splitter.traintest module</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="chemicalchecker.util.splitter.traintest.html#chemicalchecker.util.splitter.traintest.Traintest"><code class="docutils literal notranslate"><span class="pre">Traintest</span></code></a><ul>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.splitter.traintest.html#chemicalchecker.util.splitter.traintest.Traintest.close"><code class="docutils literal notranslate"><span class="pre">Traintest.close()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.splitter.traintest.html#chemicalchecker.util.splitter.traintest.Traintest.create"><code class="docutils literal notranslate"><span class="pre">Traintest.create()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.splitter.traintest.html#chemicalchecker.util.splitter.traintest.Traintest.create_signature_file"><code class="docutils literal notranslate"><span class="pre">Traintest.create_signature_file()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.splitter.traintest.html#chemicalchecker.util.splitter.traintest.Traintest.generator_fn"><code class="docutils literal notranslate"><span class="pre">Traintest.generator_fn()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.splitter.traintest.html#chemicalchecker.util.splitter.traintest.Traintest.get_all_x"><code class="docutils literal notranslate"><span class="pre">Traintest.get_all_x()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.splitter.traintest.html#chemicalchecker.util.splitter.traintest.Traintest.get_all_x_columns"><code class="docutils literal notranslate"><span class="pre">Traintest.get_all_x_columns()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.splitter.traintest.html#chemicalchecker.util.splitter.traintest.Traintest.get_all_y"><code class="docutils literal notranslate"><span class="pre">Traintest.get_all_y()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.splitter.traintest.html#chemicalchecker.util.splitter.traintest.Traintest.get_split_indeces"><code class="docutils literal notranslate"><span class="pre">Traintest.get_split_indeces()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.splitter.traintest.html#chemicalchecker.util.splitter.traintest.Traintest.get_split_names"><code class="docutils literal notranslate"><span class="pre">Traintest.get_split_names()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.splitter.traintest.html#chemicalchecker.util.splitter.traintest.Traintest.get_sw"><code class="docutils literal notranslate"><span class="pre">Traintest.get_sw()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.splitter.traintest.html#chemicalchecker.util.splitter.traintest.Traintest.get_x"><code class="docutils literal notranslate"><span class="pre">Traintest.get_x()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.splitter.traintest.html#chemicalchecker.util.splitter.traintest.Traintest.get_x_shapes"><code class="docutils literal notranslate"><span class="pre">Traintest.get_x_shapes()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.splitter.traintest.html#chemicalchecker.util.splitter.traintest.Traintest.get_xy"><code class="docutils literal notranslate"><span class="pre">Traintest.get_xy()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.splitter.traintest.html#chemicalchecker.util.splitter.traintest.Traintest.get_xy_shapes"><code class="docutils literal notranslate"><span class="pre">Traintest.get_xy_shapes()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.splitter.traintest.html#chemicalchecker.util.splitter.traintest.Traintest.get_y"><code class="docutils literal notranslate"><span class="pre">Traintest.get_y()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.splitter.traintest.html#chemicalchecker.util.splitter.traintest.Traintest.open"><code class="docutils literal notranslate"><span class="pre">Traintest.open()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.splitter.traintest.html#chemicalchecker.util.splitter.traintest.Traintest.split_h5"><code class="docutils literal notranslate"><span class="pre">Traintest.split_h5()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.splitter.traintest.html#chemicalchecker.util.splitter.traintest.Traintest.split_h5_blocks"><code class="docutils literal notranslate"><span class="pre">Traintest.split_h5_blocks()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="chemicalchecker.util.splitter.traintest.html#chemicalchecker.util.splitter.traintest.Traintest.sw_name"><code class="docutils literal notranslate"><span class="pre">Traintest.sw_name</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</div>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2020, SBNB.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>chemicalchecker.util.splitter.neighbortriplet module &mdash; chemicalchecker 1.0.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=fa44fd50" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=19f00094" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/logo.css?v=fc604eda" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/overrides.css?v=466af0f7" />
+
+  
+    <link rel="shortcut icon" href="../_static/favicon.ico"/>
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="../_static/documentation_options.js?v=8d563738"></script>
+        <script src="../_static/doctools.js?v=888ff710"></script>
+        <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html">
+            
+              <img src="../_static/logo.svg" class="logo" alt="Logo"/>
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../manifesto.html">Chemical Checker Manifesto</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../sources.html">Datasets</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../signaturization.html">Signaturization</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">chemicalchecker</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">chemicalchecker.util.splitter.neighbortriplet module</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/source/chemicalchecker.util.splitter.neighbortriplet.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="module-chemicalchecker.util.splitter.neighbortriplet">
+<span id="chemicalchecker-util-splitter-neighbortriplet-module"></span><h1>chemicalchecker.util.splitter.neighbortriplet module<a class="headerlink" href="#module-chemicalchecker.util.splitter.neighbortriplet" title="Link to this heading"></a></h1>
+<p>Splitter on Neighbor triplets.</p>
+<dl class="py class">
+<dt class="sig sig-object py" id="chemicalchecker.util.splitter.neighbortriplet.AdriaTripletSampler">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">AdriaTripletSampler</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/chemicalchecker/util/splitter/neighbortriplet.html#AdriaTripletSampler"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#chemicalchecker.util.splitter.neighbortriplet.AdriaTripletSampler" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="#chemicalchecker.util.splitter.neighbortriplet.BaseTripletSampler" title="chemicalchecker.util.splitter.neighbortriplet.BaseTripletSampler"><code class="xref py py-class docutils literal notranslate"><span class="pre">BaseTripletSampler</span></code></a></p>
+<p>The optimal Adria’s way for sampling triplets in small dataset.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="chemicalchecker.util.splitter.neighbortriplet.AdriaTripletSampler.generate_triplets">
+<span class="sig-name descname"><span class="pre">generate_triplets</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">num_triplets</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1000000.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">frac_hard</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.3</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">frac_neig</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.05</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">metric</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'jaccard'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">low_thr</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">high_thr</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.5</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">plot</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/chemicalchecker/util/splitter/neighbortriplet.html#AdriaTripletSampler.generate_triplets"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#chemicalchecker.util.splitter.neighbortriplet.AdriaTripletSampler.generate_triplets" title="Link to this definition"></a></dt>
+<dd><p>Generate triplets.</p>
+<p>This function generate triplets defining positive and negatives
+assuming a binary triplet signature (e.g. sign0) and computing all the
+similarities across molecules.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>num_triplets</strong> (<em>int</em>) – Total number of triplets to generate.</p></li>
+<li><p><strong>frac_hard</strong> (<em>float</em>) – Fraction of triplets to be of the hard case.</p></li>
+<li><p><strong>frac_neig</strong> (<em>float</em>) – Fraction of neighbor we will consider.</p></li>
+<li><p><strong>metric</strong> (<em>std</em>) – Metric to compute similarities, must be a distance
+metric that can be converted to similarity by (1-dist)</p></li>
+<li><p><strong>low_thr</strong> (<em>float</em>) – Low similarity threshold, any pair below this is
+negative.</p></li>
+<li><p><strong>high_thr</strong> (<em>float</em>) – High similarity threshold, any pair above this is
+positive.</p></li>
+<li><p><strong>plot</strong> (<em>bool</em>) – Save plots of the sampling.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="chemicalchecker.util.splitter.neighbortriplet.BaseTripletSampler">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">BaseTripletSampler</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">triplet_signature</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mol_signature</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">out_file</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">save_kwargs</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">{}</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/chemicalchecker/util/splitter/neighbortriplet.html#BaseTripletSampler"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#chemicalchecker.util.splitter.neighbortriplet.BaseTripletSampler" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>Base class for triplet samplers.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="chemicalchecker.util.splitter.neighbortriplet.BaseTripletSampler.get_split_indeces">
+<span class="sig-name descname"><span class="pre">get_split_indeces</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">rows</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fractions</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/chemicalchecker/util/splitter/neighbortriplet.html#BaseTripletSampler.get_split_indeces"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#chemicalchecker.util.splitter.neighbortriplet.BaseTripletSampler.get_split_indeces" title="Link to this definition"></a></dt>
+<dd><p>Get random indexes for different splits.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="chemicalchecker.util.splitter.neighbortriplet.BaseTripletSampler.save_triplets">
+<span class="sig-name descname"><span class="pre">save_triplets</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="pre">triplets,</span> <span class="pre">mean_center_x=True,</span> <span class="pre">shuffle=True,</span> <span class="pre">split_names=['train',</span> <span class="pre">'test'],</span> <span class="pre">split_fractions=[0.8,</span> <span class="pre">0.2],</span> <span class="pre">suffix='eval',</span> <span class="pre">cpu=1,</span> <span class="pre">x_dtype=&lt;class</span> <span class="pre">'float'&gt;,</span> <span class="pre">y_dtype=&lt;class</span> <span class="pre">'float'&gt;</span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/chemicalchecker/util/splitter/neighbortriplet.html#BaseTripletSampler.save_triplets"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#chemicalchecker.util.splitter.neighbortriplet.BaseTripletSampler.save_triplets" title="Link to this definition"></a></dt>
+<dd><p>Save sampled triplets to file.</p>
+<p>This function saves triplets performing the train test split,
+shuffling and normalization.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>triplets</strong> (<em>array</em>) – Indexes of anchor, positive and negative for
+each triplet.</p></li>
+<li><p><strong>mean_center_x</strong> (<em>bool</em>) – Normalize data columns wise.</p></li>
+<li><p><strong>shuffle</strong> (<em>bool</em>) – shuffle order of triplets.</p></li>
+<li><p><strong>split_names</strong> (<em>list str</em>) – names of the splits.</p></li>
+<li><p><strong>split_fractions</strong> (<em>list float</em>) – fraction of each split.</p></li>
+<li><p><strong>suffix</strong> (<em>str</em>) – suffix of the generated scaler.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="chemicalchecker.util.splitter.neighbortriplet.OldTripletSampler">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">OldTripletSampler</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/chemicalchecker/util/splitter/neighbortriplet.html#OldTripletSampler"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#chemicalchecker.util.splitter.neighbortriplet.OldTripletSampler" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="#chemicalchecker.util.splitter.neighbortriplet.BaseTripletSampler" title="chemicalchecker.util.splitter.neighbortriplet.BaseTripletSampler"><code class="xref py py-class docutils literal notranslate"><span class="pre">BaseTripletSampler</span></code></a></p>
+<p>Used to be the monstrous NeighborTripletTraintest.
+Performs well on large spaces, less well on smaller ones</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="chemicalchecker.util.splitter.neighbortriplet.OldTripletSampler.generate_triplets">
+<span class="sig-name descname"><span class="pre">generate_triplets</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="pre">f_per=0.1,</span> <span class="pre">t_per=0.01,</span> <span class="pre">mean_center_x=True,</span> <span class="pre">shuffle=True,</span> <span class="pre">check_distances=True,</span> <span class="pre">split_names=['train',</span> <span class="pre">'test'],</span> <span class="pre">split_fractions=[0.8,</span> <span class="pre">0.2],</span> <span class="pre">suffix='eval',</span> <span class="pre">x_dtype=&lt;class</span> <span class="pre">'float'&gt;,</span> <span class="pre">y_dtype=&lt;class</span> <span class="pre">'float'&gt;,</span> <span class="pre">num_triplets=1000000.0,</span> <span class="pre">limit=100000,</span> <span class="pre">cpu=1</span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/chemicalchecker/util/splitter/neighbortriplet.html#OldTripletSampler.generate_triplets"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#chemicalchecker.util.splitter.neighbortriplet.OldTripletSampler.generate_triplets" title="Link to this definition"></a></dt>
+<dd><p>Sample triplets using an approach suited for large spaces.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>num_triplets</strong> (<em>int</em>) – Total number of triplets to generate.</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="chemicalchecker.util.splitter.neighbortriplet.PrecomputedTripletSampler">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">PrecomputedTripletSampler</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">triplet_signature</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mol_signature</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">out_file</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">save_kwargs</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">{}</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/chemicalchecker/util/splitter/neighbortriplet.html#PrecomputedTripletSampler"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#chemicalchecker.util.splitter.neighbortriplet.PrecomputedTripletSampler" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="#chemicalchecker.util.splitter.neighbortriplet.BaseTripletSampler" title="chemicalchecker.util.splitter.neighbortriplet.BaseTripletSampler"><code class="xref py py-class docutils literal notranslate"><span class="pre">BaseTripletSampler</span></code></a></p>
+<p>The triplets are not sampled but pre-computed.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="chemicalchecker.util.splitter.neighbortriplet.PrecomputedTripletSampler.generate_triplets">
+<span class="sig-name descname"><span class="pre">generate_triplets</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="pre">X,</span> <span class="pre">ink_keys,</span> <span class="pre">triplets,</span> <span class="pre">out_file,</span> <span class="pre">mean_center_x=True,</span> <span class="pre">shuffle=True,</span> <span class="pre">split_names=['train',</span> <span class="pre">'test'],</span> <span class="pre">split_fractions=[0.8,</span> <span class="pre">0.2],</span> <span class="pre">suffix='eval',</span> <span class="pre">cpu=1,</span> <span class="pre">x_dtype=&lt;class</span> <span class="pre">'float'&gt;,</span> <span class="pre">y_dtype=&lt;class</span> <span class="pre">'float'&gt;</span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/chemicalchecker/util/splitter/neighbortriplet.html#PrecomputedTripletSampler.generate_triplets"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#chemicalchecker.util.splitter.neighbortriplet.PrecomputedTripletSampler.generate_triplets" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="chemicalchecker.util.splitter.neighbortriplet.TripletIterator">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">TripletIterator</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">hdf5_file</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">split</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">replace_nan</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/chemicalchecker/util/splitter/neighbortriplet.html#TripletIterator"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#chemicalchecker.util.splitter.neighbortriplet.TripletIterator" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>TripletIterator class.</p>
+<p>Initialize a TripletIterator instance.</p>
+<p>This allows iterating on train/test splits of triplets
+generated via a <cite>TripletSampler</cite> class.
+We assume the file is containing different splits.
+e.g. “x_train”, “y_train”, “x_test”, …</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>hdf5_file</strong> (<em>str</em>) – the path to a file generated via
+TripletSample class.</p></li>
+<li><p><strong>split</strong> (<em>str</em>) – The H5 typically contains ‘train’ or
+‘test’ splits, the iterator will focus on
+that split.</p></li>
+<li><p><strong>replace_nan</strong> (<em>float</em>) – If None, nothing is replaced,
+otherwise NaN are replaced by the value
+specified.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="chemicalchecker.util.splitter.neighbortriplet.TripletIterator.close">
+<span class="sig-name descname"><span class="pre">close</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/chemicalchecker/util/splitter/neighbortriplet.html#TripletIterator.close"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#chemicalchecker.util.splitter.neighbortriplet.TripletIterator.close" title="Link to this definition"></a></dt>
+<dd><p>Close the HDF5.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="chemicalchecker.util.splitter.neighbortriplet.TripletIterator.generator_fn">
+<em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">generator_fn</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">file_name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">split</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">replace_nan</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">batch_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">shuffle</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">train</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">augment_fn</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">augment_kwargs</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">{}</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mask_fn</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">trim_mask</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sharedx</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sharedx_trim</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">onlyself_notself</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">p_self_decay</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/chemicalchecker/util/splitter/neighbortriplet.html#TripletIterator.generator_fn"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#chemicalchecker.util.splitter.neighbortriplet.TripletIterator.generator_fn" title="Link to this definition"></a></dt>
+<dd><p>Return the generator function that iterates on batches.</p>
+<p>A TripletIterator on the specified file and split is initialized,
+we allow for additional masking, shared X matrix and more.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>file_name</strong> (<em>str</em>) – The H5 generated via a <cite>TripletSampler</cite> class</p></li>
+<li><p><strong>split</strong> (<em>str</em>) – One of ‘train_train’, ‘train_test’, or ‘test_test’</p></li>
+<li><p><strong>replace_nan</strong> (<em>bool</em>) – Value used for NaN replacement.</p></li>
+<li><p><strong>batch_size</strong> (<em>int</em>) – Size of a batch of data.</p></li>
+<li><p><strong>shuffle</strong> (<em>bool</em>) – Shuffle the order of batches.</p></li>
+<li><p><strong>train</strong> (<em>bool</em>) – At train time the augment function is applied.</p></li>
+<li><p><strong>augment_fn</strong> (<em>func</em>) – Function to augment data.</p></li>
+<li><p><strong>augment_kwargs</strong> (<em>dict</em>) – Parameters for the augment function.</p></li>
+<li><p><strong>mask_fn</strong> (<em>func</em>) – Function to mask data while iterating.</p></li>
+<li><p><strong>trim_mask</strong> (<em>array</em>) – Initial masking of data (spaces are excluded).</p></li>
+<li><p><strong>sharedx</strong> (<em>matrix</em>) – The preloaded X matrix.</p></li>
+<li><p><strong>sharedx_trim</strong> (<em>matrix</em>) – The preloaded and pre-trimmed X matrix.</p></li>
+<li><p><strong>onlyself_notself</strong> (<em>bool</em>) – when True the iterator will return a
+quintuplet with also only_self and not_self.</p></li>
+<li><p><strong>p_self_decay</strong> (<em>bool</em>) – when True the p_self probability will decay
+within the batch, and restart at each batch.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="chemicalchecker.util.splitter.neighbortriplet.TripletIterator.get_all_p">
+<span class="sig-name descname"><span class="pre">get_all_p</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/chemicalchecker/util/splitter/neighbortriplet.html#TripletIterator.get_all_p"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#chemicalchecker.util.splitter.neighbortriplet.TripletIterator.get_all_p" title="Link to this definition"></a></dt>
+<dd><p>Get full X.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="chemicalchecker.util.splitter.neighbortriplet.TripletIterator.get_all_x">
+<span class="sig-name descname"><span class="pre">get_all_x</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/chemicalchecker/util/splitter/neighbortriplet.html#TripletIterator.get_all_x"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#chemicalchecker.util.splitter.neighbortriplet.TripletIterator.get_all_x" title="Link to this definition"></a></dt>
+<dd><p>Get full X.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="chemicalchecker.util.splitter.neighbortriplet.TripletIterator.get_all_y">
+<span class="sig-name descname"><span class="pre">get_all_y</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/chemicalchecker/util/splitter/neighbortriplet.html#TripletIterator.get_all_y"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#chemicalchecker.util.splitter.neighbortriplet.TripletIterator.get_all_y" title="Link to this definition"></a></dt>
+<dd><p>Get full Y.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="chemicalchecker.util.splitter.neighbortriplet.TripletIterator.get_split_names">
+<span class="sig-name descname"><span class="pre">get_split_names</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/chemicalchecker/util/splitter/neighbortriplet.html#TripletIterator.get_split_names"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#chemicalchecker.util.splitter.neighbortriplet.TripletIterator.get_split_names" title="Link to this definition"></a></dt>
+<dd><p>Return the name of the splits.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="chemicalchecker.util.splitter.neighbortriplet.TripletIterator.get_t">
+<span class="sig-name descname"><span class="pre">get_t</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">beg_idx</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">end_idx</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/chemicalchecker/util/splitter/neighbortriplet.html#TripletIterator.get_t"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#chemicalchecker.util.splitter.neighbortriplet.TripletIterator.get_t" title="Link to this definition"></a></dt>
+<dd><p>Get a batch of X.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="chemicalchecker.util.splitter.neighbortriplet.TripletIterator.get_ty_shapes">
+<span class="sig-name descname"><span class="pre">get_ty_shapes</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/chemicalchecker/util/splitter/neighbortriplet.html#TripletIterator.get_ty_shapes"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#chemicalchecker.util.splitter.neighbortriplet.TripletIterator.get_ty_shapes" title="Link to this definition"></a></dt>
+<dd><p>Return the shapes of X an Y.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="chemicalchecker.util.splitter.neighbortriplet.TripletIterator.get_x_columns">
+<span class="sig-name descname"><span class="pre">get_x_columns</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">mask</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/chemicalchecker/util/splitter/neighbortriplet.html#TripletIterator.get_x_columns"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#chemicalchecker.util.splitter.neighbortriplet.TripletIterator.get_x_columns" title="Link to this definition"></a></dt>
+<dd><p>Get full X.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="chemicalchecker.util.splitter.neighbortriplet.TripletIterator.get_xy_shapes">
+<span class="sig-name descname"><span class="pre">get_xy_shapes</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/chemicalchecker/util/splitter/neighbortriplet.html#TripletIterator.get_xy_shapes"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#chemicalchecker.util.splitter.neighbortriplet.TripletIterator.get_xy_shapes" title="Link to this definition"></a></dt>
+<dd><p>Return the shapes of X an Y.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="chemicalchecker.util.splitter.neighbortriplet.TripletIterator.get_y">
+<span class="sig-name descname"><span class="pre">get_y</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">beg_idx</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">end_idx</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/chemicalchecker/util/splitter/neighbortriplet.html#TripletIterator.get_y"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#chemicalchecker.util.splitter.neighbortriplet.TripletIterator.get_y" title="Link to this definition"></a></dt>
+<dd><p>Get a batch of Y.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="chemicalchecker.util.splitter.neighbortriplet.TripletIterator.open">
+<span class="sig-name descname"><span class="pre">open</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/chemicalchecker/util/splitter/neighbortriplet.html#TripletIterator.open"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#chemicalchecker.util.splitter.neighbortriplet.TripletIterator.open" title="Link to this definition"></a></dt>
+<dd><p>Open the HDF5.</p>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2020, SBNB.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
