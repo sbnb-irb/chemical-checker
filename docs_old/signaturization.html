@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Signaturization &mdash; chemicalchecker 1.0.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=fa44fd50" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=19f00094" />
+      <link rel="stylesheet" type="text/css" href="_static/css/logo.css?v=fc604eda" />
+      <link rel="stylesheet" type="text/css" href="_static/css/overrides.css?v=466af0f7" />
+
+  
+    <link rel="shortcut icon" href="_static/favicon.ico"/>
+  <!--[if lt IE 9]>
+    <script src="_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="_static/jquery.js?v=5d32c60e"></script>
+        <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="_static/documentation_options.js?v=8d563738"></script>
+        <script src="_static/doctools.js?v=888ff710"></script>
+        <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="prev" title="Datasets" href="sources.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html">
+            
+              <img src="_static/logo.svg" class="logo" alt="Logo"/>
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="manifesto.html">Chemical Checker Manifesto</a></li>
+<li class="toctree-l1"><a class="reference internal" href="sources.html">Datasets</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Signaturization</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#signature-characteristics">Signature characteristics</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#signatures-type-0">Signatures type 0</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#signatures-type-1">Signatures type 1</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#signatures-type-2">Signatures type 2</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#signatures-type-3">Signatures type 3</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#applicability">Applicability</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#signatures-type-4">Signatures type 4</a></li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">chemicalchecker</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Signaturization</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/signaturization.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="signaturization">
+<h1>Signaturization<a class="headerlink" href="#signaturization" title="Link to this heading"></a></h1>
+<p>The main feature of the CC is the automatic conversion of virtually any compound-related data into a standard format ready-to-be-used by machine learning algorithms. All CC data is stored as <code class="docutils literal notranslate"><span class="pre">HDF5</span></code> files following a folder structure organized by datasets (described in <code class="xref py py-mod docutils literal notranslate"><span class="pre">chemicalchecker.core.chemcheck</span></code>).</p>
+<p>The central type of data is the <strong>signature</strong> (one numerical vector per molecule). There are 5 types of signatures:</p>
+<blockquote>
+<div><ul class="simple">
+<li><p><strong>Signatures type 0</strong> <code class="xref py py-class docutils literal notranslate"><span class="pre">sign0</span></code>: A sufficiently-processed version of the raw data. They usually show explicit knowledge, which enables connectivity and interpretation.</p></li>
+<li><p><strong>Signatures type 1</strong> <code class="xref py py-class docutils literal notranslate"><span class="pre">sign1</span></code>: A mildly compressed (usually latent) representation of the signatures, with a dimensionality that typically retains 90% of the original variance. They keep most of the complexity of the original data and they can be used for similarity calculations.</p></li>
+<li><p><strong>Signatures type 2</strong> <code class="xref py py-class docutils literal notranslate"><span class="pre">sign2</span></code>: Network embedding of the similarity matrix derived from signatures type 1. These signatures have a fixed length (e.g. 128-d), which is convenient for machine learning, and capture both explicit <em>and</em> implicit similarity relationships in the data.</p></li>
+<li><p><strong>Signatures type 3</strong> <code class="xref py py-class docutils literal notranslate"><span class="pre">sign3</span></code>: Fixed-length (e.g. 128-d) representation of the data, capturing <em>and</em> inferring the original (signature type 1) similarity of the data. Signatures type 3 are available for any molecule in the Chemical Checker universe (~1 Million) and have a confidence measure assigned to them.</p></li>
+<li><p><strong>Signatures type 4</strong> <code class="xref py py-class docutils literal notranslate"><span class="pre">sign4</span></code>: Fixed-length (e.g. 128-d) representation of the data, inferring the signature type 3. Signatures type 4 are available for any molecule of interest and have a confidence measure assigned to them. Are convinently generated with the <em>signaturizer</em> tool.</p></li>
+</ul>
+</div></blockquote>
+<p>Besides, there are other auxiliary types of data that can be computed for each of the signature types.</p>
+<blockquote>
+<div><ul class="simple">
+<li><p><strong>Nearest neighbors</strong> <code class="xref py py-class docutils literal notranslate"><span class="pre">neig</span></code>: Nearest neighbors search result. Currently, we consider the 1000-nearest neighbors, which is more than sufficient in any realistic scenario.</p></li>
+<li><p><strong>Clusters</strong> <code class="xref py py-class docutils literal notranslate"><span class="pre">clus</span></code>: Centroids and labels of a k-means clustering.</p></li>
+<li><p><strong>2D Projections</strong> <code class="xref py py-class docutils literal notranslate"><span class="pre">proj</span></code>: Various (t-SNE, UMAP, PCA) 2D projections of the data.</p></li>
+</ul>
+</div></blockquote>
+<section id="signature-characteristics">
+<h2>Signature characteristics<a class="headerlink" href="#signature-characteristics" title="Link to this heading"></a></h2>
+<p>Every CC signature must have:</p>
+<ul class="simple">
+<li><p>A matrix of data <code class="docutils literal notranslate"><span class="pre">V</span></code>.</p></li>
+<li><p>Keys (typically InChIKeys) <code class="docutils literal notranslate"><span class="pre">keys</span></code>.</p></li>
+<li><p>A <code class="docutils literal notranslate"><span class="pre">fit</span></code> method to be run at production time.</p></li>
+<li><p>A <code class="docutils literal notranslate"><span class="pre">predict</span></code> method to be run for out-of-production (new) data.</p></li>
+</ul>
+<p>Below we detail the characteristics of each signature type and the algorithms behind.</p>
+<p>All signature classes inherit from two base-classes that enforce shared behavior:</p>
+<blockquote>
+<div><dl class="simple">
+<dt><a href="#id1"><span class="problematic" id="id2">*</span></a>. <code class="xref py py-class docutils literal notranslate"><span class="pre">BaseSignature</span></code>: uses</dt><dd><p>low level <code class="docutils literal notranslate"><span class="pre">HDF5</span></code> to optimize access to signature persistence level (e.g.
+the file <code class="docutils literal notranslate"><span class="pre">/root/full/A/A1/A1.001/sign2/sign2.h5</span></code>)</p>
+</dd>
+<dt><a href="#id3"><span class="problematic" id="id4">*</span></a>. <code class="xref py py-class docutils literal notranslate"><span class="pre">DataSignature</span></code>: implements</dt><dd><p>sanity checks, internal signature directory structure, fit and predict
+hooks, etc…</p>
+</dd>
+</dl>
+</div></blockquote>
+</section>
+<section id="signatures-type-0">
+<h2>Signatures type 0<a class="headerlink" href="#signatures-type-0" title="Link to this heading"></a></h2>
+<p>These are the raw signatures that enter the CC pipeline. The input of these signatures can be:</p>
+<ul class="simple">
+<li><p><em>Sparse</em>: A <code class="docutils literal notranslate"><span class="pre">pairs</span></code> vector (e.g. molecule-target pairs), optionally with weights.</p></li>
+<li><p><em>Dense</em>: An <code class="docutils literal notranslate"><span class="pre">X</span></code> matrix with <code class="docutils literal notranslate"><span class="pre">keys</span></code> (e.g. molecules) and <code class="docutils literal notranslate"><span class="pre">features</span></code> (e.g. cell-lines).</p></li>
+</ul>
+<p>Signatures type 0 are minimally modified. We only apply the following modifications:</p>
+<ul class="simple">
+<li><p><em>Imputation</em>: for <em>dense</em> inputs, <code class="docutils literal notranslate"><span class="pre">NA</span></code> values are median-imputed.</p></li>
+<li><p><em>Aggregation</em>: In case some keys are duplicated (for instance, at fit and predict time), user can choose to keep the first instance, the last instance, or an average of the data.</p></li>
+</ul>
+<p>See implementation details in <code class="xref py py-mod docutils literal notranslate"><span class="pre">sign0</span></code></p>
+</section>
+<section id="signatures-type-1">
+<h2>Signatures type 1<a class="headerlink" href="#signatures-type-1" title="Link to this heading"></a></h2>
+<p>These signatures are processed versions of the <em>experimental</em> data available in the CC and can be used for similarity measures. They have variable dimensionality, depending on the CC space.</p>
+<p>The CC provides an automated pipeline for producing signatures type 1. We allow some flexibility and the user can choose to apply the following procedures:</p>
+<ul class="simple">
+<li><p><em>Latent representation</em>: For originally sparse matrices, this is TF-IDF Latent-semantic indexing (LSI). For dense matrices, this corresponds to a PCA (optionally, preceded by a robust median-based scaling). By default, we keep 90% of the variance.</p></li>
+<li><p><em>Outlier removal</em>: Outlier keys (molecules) can be removed based on the isolation forest algorithm.</p></li>
+<li><p><em>Metric learning</em>: A shallow siamese network can be trained to learn a latent representation of the space that has a good distance distribution. Metric learning requires similar/dissimilar cases (triplets); we offer two options:</p>
+<ul>
+<li><p><em>Unsupervised</em>: Triplets are drawn from the signature itself.</p></li>
+<li><p><em>Semi-supervised</em>: Triplets are drawn from other CC signatures. This helps integrate/contextualize the signature in question within the framework of the CC.</p></li>
+</ul>
+</li>
+</ul>
+<p>See implementation details in <code class="xref py py-mod docutils literal notranslate"><span class="pre">sign1</span></code></p>
+</section>
+<section id="signatures-type-2">
+<h2>Signatures type 2<a class="headerlink" href="#signatures-type-2" title="Link to this heading"></a></h2>
+<p>These signatures are mostly used for internal machine-learning procedures, as they have a convenient fixed-length format.</p>
+<p>Signatures type 2 are produced with two steps:</p>
+<blockquote>
+<div><ol class="arabic simple">
+<li><p>Construction of a similarity network using signatures type 1.</p></li>
+<li><p>Network embedding (using <code class="xref py py-mod docutils literal notranslate"><span class="pre">node2vec</span></code>).</p></li>
+</ol>
+</div></blockquote>
+<p>See implementation details in <code class="xref py py-mod docutils literal notranslate"><span class="pre">sign2</span></code></p>
+</section>
+<section id="signatures-type-3">
+<h2>Signatures type 3<a class="headerlink" href="#signatures-type-3" title="Link to this heading"></a></h2>
+<p>These signatures are fixed-length vectors available for all molecules of the Chemical Checker universe (~1 Million). Thus, they are mostly <em>inferred</em> properties.</p>
+<p>To learn signatures type 3:</p>
+<ul class="simple">
+<li><p>Triplets are sampled from type 1 similarities</p></li>
+<li><p>Signatures type 2 across the CC are used as input for a deep siamese neural network. Thus, 25 fixed-length vectors are stacked.</p></li>
+<li><p>A signature-dropout (subsampling) procedure is applied to ensure that the data seen in the training set are <em>realistic</em>, meaning that the signature coverage resembles the coverage available for those molecules that do <em>not</em> have data available for the CC space in question.</p></li>
+</ul>
+<section id="applicability">
+<h3>Applicability<a class="headerlink" href="#applicability" title="Link to this heading"></a></h3>
+<p>An <code class="docutils literal notranslate"><span class="pre">applicability</span></code> score represent how “confident” we can be about a
+specific signature type 3. This accuracy estimate is based on:</p>
+<ul class="simple">
+<li><p><em>Distance</em>: signatures that are close to training-set signatures are, in principle, closer to the
+applicability domain. We measure distances in an unsupervised way (i.e. average distance
+to 5/25 nearest-neighbors) and in a supervised way by means of a random forest regressor
+trained on signatures as features and prediction accuracy (correlation) as dependent variable. In
+addition, we devised a measure of ‘intensity’, defined as the mean absolute deviation of the
+signatures to the average (null) signature observed in the training set.</p></li>
+<li><p><em>Robustness</em>: The signature-dropout procedure presented above can be applied at prediction
+time to get an estimate of the robustness of the prediction. For each molecule, we generated 10
+dropped-out inputs, thereby obtaining an ensemble of predictions. Small standard deviations
+over these predictions indicate a robust output.</p></li>
+<li><p><em>Expectancy a priori</em>: We calculated the accuracy that is expected given the input signatures
+available for a particular molecule. Some CC signature types are highly predictive for others;
+thus, having these informative signatures at hand will in principle favor reliable predictions. This
+prior expectancy was calculated by fitting a random forest classifier having 25
+absence/presence features as covariates and prediction accuracy as outcome.</p></li>
+</ul>
+<p>See implementation details in <code class="xref py py-mod docutils literal notranslate"><span class="pre">sign3</span></code></p>
+</section>
+</section>
+<section id="signatures-type-4">
+<h2>Signatures type 4<a class="headerlink" href="#signatures-type-4" title="Link to this heading"></a></h2>
+<p>These signatures are fixed-length vectors available for <em>any</em> molecule of interest. They are completely <em>inferred</em>.</p>
+<p>To learn signatures type 4:</p>
+<ul class="simple">
+<li><p>A DNN for multi-output regression problem is trained to predict signatures type 3 from a simple ECFP4 (Morgan fingerprint) representation.</p></li>
+<li><p>These signatures correspond to <em>signaturizer</em> produced signatures</p></li>
+</ul>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="sources.html" class="btn btn-neutral float-left" title="Datasets" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2020, SBNB.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

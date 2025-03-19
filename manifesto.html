@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Chemical Checker Manifesto &mdash; chemicalchecker 1.0.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=fa44fd50" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=19f00094" />
+      <link rel="stylesheet" type="text/css" href="_static/css/logo.css?v=fc604eda" />
+      <link rel="stylesheet" type="text/css" href="_static/css/overrides.css?v=466af0f7" />
+
+  
+    <link rel="shortcut icon" href="_static/favicon.ico"/>
+  <!--[if lt IE 9]>
+    <script src="_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="_static/jquery.js?v=5d32c60e"></script>
+        <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="_static/documentation_options.js?v=8d563738"></script>
+        <script src="_static/doctools.js?v=888ff710"></script>
+        <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Datasets" href="sources.html" />
+    <link rel="prev" title="The Chemical Checker" href="index.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html">
+            
+              <img src="_static/logo.svg" class="logo" alt="Logo"/>
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Chemical Checker Manifesto</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#chemistry-first">Chemistry first</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#the-small-molecule-similarity-principle-simply-makes-sense">The small molecule similarity principle simply makes sense</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#all-molecules-are-equally-interesting">All molecules are equally interesting</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#infinite-data-finite-types-of-data">Infinite data, finite types of data</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#others-are-better-curators-than-us">Others are better curators than us</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#it-is-time-to-go-predictive">It is time to go predictive</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#we-don-t-need-another-chemoinformatics-library">We don’t need another chemoinformatics library</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="sources.html">Datasets</a></li>
+<li class="toctree-l1"><a class="reference internal" href="signaturization.html">Signaturization</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">chemicalchecker</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Chemical Checker Manifesto</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/manifesto.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="chemical-checker-manifesto">
+<h1>Chemical Checker Manifesto<a class="headerlink" href="#chemical-checker-manifesto" title="Link to this heading"></a></h1>
+<blockquote class="epigraph">
+<div><p>In Ersilia, to establish the relationships that sustain the city’s
+life, the inhabitants stretch strings from the corners of the houses,
+white or black or gray or black-and-white according to whether they
+mark a relationship of blood, of trade, authority, agency. When the
+strings become so numerous that you can no longer pass among them,
+the inhabitants leave: the houses are dismantled; only the strings
+and their supports remain.</p>
+<p class="attribution">—<em>Invisible Cities</em>, Italo Calvino</p>
+</div></blockquote>
+<section id="chemistry-first">
+<h2>Chemistry first<a class="headerlink" href="#chemistry-first" title="Link to this heading"></a></h2>
+<p>The chemical matter has been largely overlooked in the omics era in
+favor of sequence molecules such as DNA or proteins. It is time to
+praise for small molecules and bring them back to the front-line of
+biomedical research.</p>
+</section>
+<section id="the-small-molecule-similarity-principle-simply-makes-sense">
+<h2>The small molecule similarity principle simply makes sense<a class="headerlink" href="#the-small-molecule-similarity-principle-simply-makes-sense" title="Link to this heading"></a></h2>
+<p>Similar molecules (tend to) have similar bioactivities. This principle
+has been validated recurrently and it is the cornerstone of the CC.</p>
+</section>
+<section id="all-molecules-are-equally-interesting">
+<h2>All molecules are equally interesting<a class="headerlink" href="#all-molecules-are-equally-interesting" title="Link to this heading"></a></h2>
+<p>There is an acute research bias towards popular compounds such as
+approved drugs. The chemical space is much larger than this.
+Understudied molecules need to enter computational drug discovery
+pipelines.</p>
+</section>
+<section id="infinite-data-finite-types-of-data">
+<h2>Infinite data, finite types of data<a class="headerlink" href="#infinite-data-finite-types-of-data" title="Link to this heading"></a></h2>
+<p>The CC is restricted to a 5x5 organization of data types, and it will
+continue like this. Data are constantly released to the public domain,
+and it is our duty to keep up to date with the work of others. Despite
+the rather fixed organization of the CC, we have room for an unlimited
+number of datasets. Dataset are data of a certain type, belonging to one
+(or more) particular resource, and treated in a well-defined way.</p>
+</section>
+<section id="others-are-better-curators-than-us">
+<h2>Others are better curators than us<a class="headerlink" href="#others-are-better-curators-than-us" title="Link to this heading"></a></h2>
+<p>The SB&amp;NB <em>is not</em> a data curation group, and the CC is not an
+integrative database in the strict sense of the word. We trust the work
+of others.</p>
+</section>
+<section id="it-is-time-to-go-predictive">
+<h2>It is time to go predictive<a class="headerlink" href="#it-is-time-to-go-predictive" title="Link to this heading"></a></h2>
+<p>The omics revolution has produced an overwhelming amount of
+molecule/phenotype correlations but, most often, these have not been
+useful to do prospective predictions. In the CC, we sacrify precise
+interpretation in favor of more abstract representations of the data
+(signatures), which are easy to plug to machine learning algorithms.</p>
+</section>
+<section id="we-don-t-need-another-chemoinformatics-library">
+<h2>We don’t need another chemoinformatics library<a class="headerlink" href="#we-don-t-need-another-chemoinformatics-library" title="Link to this heading"></a></h2>
+<p>There are tons of chemoinformatics libraries out there, and some of them
+are truly awesome. The CC is mostly about generating biological
+signatures, not about reading different types of small molecule formats
+or producing images for them.</p>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="index.html" class="btn btn-neutral float-left" title="The Chemical Checker" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="sources.html" class="btn btn-neutral float-right" title="Datasets" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2020, SBNB.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
