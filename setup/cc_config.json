@@ -1,13 +1,3 @@
-{
-    
-    "PATH": {
-        "SINGULARITY_IMAGE": "'/aloy/home/ymartins/cc_310.simg'",
-        "CC_REPO": "'/aloy/home/ymartins/Documents/cc_update/chemical_checker'",
-        "CC_TMP": "'/aloy/scratch/ymartins/cc/tmp_folder/'"
-    },
-    "TOOLS": {
-        "node2vec_exec" : "'/opt/node2vec'",
-        "snap": "'/opt'"
-    }
-
-}
+version https://git-lfs.github.com/spec/v1
+oid sha256:01a68f2a73bd9d7fc3ef9ec37c13e64275c4623d829990157928d2611811a9ad
+size 329

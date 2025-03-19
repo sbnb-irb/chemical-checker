@@ -1,22 +1,3 @@
-molrepo_name,datasource_name
-cmaup,cmaup
-repohub,repohub
-kegg,kegg_br
-bindingdb,bindingdb
-chebi,chebi_lite
-chembl,chembl
-ctd,CTD_chemicals_diseases
-drugbank,drugbank
-lincs,compoundinfo_beta
-morphlincs,morphlincs_LDS-1195
-mosaic,mosaic_all_collections
-nci60,DTP_NCI60_ZSCORE
-pdb,pdb_components
-sider,chemicals
-sider,meddra_all_se
-smpdb,smpdb_structures
-biur_real,biur_real
-biur_virtual,biur_virtual
-hmdb,hmdb_metabolites
-pharmacodb,pharmacodb
-touchstone,GSE92742_Broad_LINCS_pert_info
+version https://git-lfs.github.com/spec/v1
+oid sha256:5af39a941f5e0dd4c5f4ed77ee1e45b5d3005a648c30eb6ccebfdee6b6570970
+size 484

@@ -1,33 +1,3 @@
-{
-    "PATH": {
-        "CC_ROOT": "'/aloy/home/amonsalve/visualizations/cc_local'",
-        "CC_DATA": "'/aloy/web_checker/current/sign_links'",
-        "CC_TMP": "'/aloy/scratch/amonsalve/visualizations'",
-        "CC_REPO": "'/aloy/home/amonsalve/code/chemical_checker'",
-        "SINGULARITY_IMAGE": "'/aloy/home/amonsalve/images/cc.simg'",
-        "validation_path": "'/aloy/web_checker/package_cc/validation_sets/'"
-    },
-    "VERBOSITY": {
-        "level":"'warning'"
-    },
-    "DB": {
-        "dialect": "'postgresql'",
-        "port":  "'5432'",
-        "host": "'10.5.4.240'",
-        "user": "'cc_user'",
-        "password": "'checker'",
-        "database": "'cc_2021_07'",
-        "calcdata_dbname": "'cc_calcdata'",
-        "uniprot_db_version" : "'2019_01'"
-    },
-    "HPC": {
-        "system" : "'sge'",
-        "host": "'pac-one-head'",
-        "queue": "'all.q@pac-one401,all.q@pac-one301,all.q@pac-one109,all.q@pac-one108,all.q@pac-one107,all.q@pac-one106'",
-        "username": "'cc_user'"
-    },
-    "TOOLS": {
-        "node2vec_exec" : "'/aloy/home/mbertoni/code/snap/examples/node2vec/node2vec'"
-    }
-
-}
+version https://git-lfs.github.com/spec/v1
+oid sha256:bb34c9754cf9549b21714564c95ea5960e8f4e84973fb8246bb669d5daf88b91
+size 1130

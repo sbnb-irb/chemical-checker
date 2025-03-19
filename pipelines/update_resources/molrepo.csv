@@ -1,21 +1,3 @@
-molrepo_name,description,universe,essential
-bindingdb,Binding molecular repository,t,t
-chebi,,t,t
-chembl,Chembl molecular repository,t,t
-ctd,,t,t
-drugbank,Drugbank molecular repository,t,t
-kegg,KEGG molecular repository,t,t
-lincs,,t,t
-morphlincs,,t,t
-mosaic,,t,t
-nci60,,t,t
-pdb,,t,t
-sider,,t,t
-smpdb,,t,t
-biur_real,ChemistryX Biur real library,f,t
-biur_virtual,ChemistryX Biur virtual library,f,t
-hmdb,"The Human Metabolome Database (HMDB) is a database containing detailed information about small molecule metabolites found in the human body. It is intended to be used for applications in metabolomics, clinical chemistry, biomarker discovery and general education. The database is designed to contain or link three kinds of data: 1) chemical data, 2) clinical data, and 3) molecular biology/biochemistry data.",f,t
-cmaup,CMAUP Natural Products Database. This database is a meta-resource.,f,t
-repohub,"Drug Repurposing Hub database, accessible from https://clue.io/repurposing-app, is a curated resource of approved and experimental drugs. It has the advantage of being tighthly integrated within the Broad LINCS environment.",f,t
-pharmacodb,PharmacoDB assembles the largest in vitro drug sensitivity screens in a single database.,f,t
-touchstone,Reference Clue.io collection,f,t
+version https://git-lfs.github.com/spec/v1
+oid sha256:d39a260da1e84c2438f29e9fe28a7b6138f956c0bf66036067def71e2d1a8942
+size 1280
