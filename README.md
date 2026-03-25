@@ -3,9 +3,9 @@
 The **Chemical Checker (CC)** is a resource of small molecule signatures. In the CC, compounds are described from multiple viewpoints, spanning every aspect of the drug discovery pipeline, from chemical properties to clinical outcomes.
 
 * For a quick exploration of what this resource enables, please visit the [CC web app](http://chemicalchecker.org).
-* For full documentation of the python package, please see the [Documentation](http://packages.sbnb-pages.irbbarcelona.org/chemical_checker).
+* For full documentation of the python package, please see the [Documentation](https://sbnb-irb.github.io/chemical_checker/).
 * Concepts and methods are best described in the original CC publication, [Duran-Frigola et al. 2019](https://biorxiv.org/content/10.1101/745703v1).
-* For more information about this repository, discussion, notes, etc... please refer to our [Wiki page](http://gitlabsbnb-old.irbbarcelona.org/packages/chemical_checker/wikis/home).
+* For more information about this repository, discussion, notes, etc... please refer to our [Wiki page](https://github.com/sbnb-irb/chemical_checker/wiki).
 
 The **Chemical Checker Repository** holds the current implementation of the CC in our `SB&NB` laboratory. As such, the repository contains a significant number of functionalities and data not presented in the primary CC manuscript. The repository follows this directory structure:
 
