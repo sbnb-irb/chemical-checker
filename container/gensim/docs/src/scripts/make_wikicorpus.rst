@@ -1,3 +1,9 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:0723d57e69146ceb5231451bed6515e493f10daf3eaba427a4dcda5cd6c1f037
-size 367
+:mod:`scripts.make_wikicorpus` -- Convert articles from a Wikipedia dump to vectors. 
+====================================================================================
+
+.. automodule:: gensim.scripts.make_wikicorpus
+    :synopsis: Convert articles from a Wikipedia dump to vectors. 
+    :members:
+    :inherited-members:
+    :undoc-members:
+    :show-inheritance:

@@ -1,3 +1,9 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:e1ea7493765756414b981c7191a14fd5e264a708698d1ebdf4f666443f13e30f
-size 377
+:mod:`topic_coherence.direct_confirmation_measure` -- Direct confirmation measure module
+========================================================================================
+
+.. automodule:: gensim.topic_coherence.direct_confirmation_measure
+    :synopsis: Direct confirmation measure module
+    :members:
+    :inherited-members:
+    :undoc-members:
+    :show-inheritance:

@@ -1,3 +1,8 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:005ad7070dc92405cbd2653c3ad050efbc3e2c9580f5b28c7e92fa8eeb67325a
-size 299
+:mod:`similarities.annoy` -- Approximate Vector Search using Annoy
+==================================================================
+
+.. automodule:: gensim.similarities.annoy
+    :synopsis: Fast Approximate Nearest Neighbor Similarity with the Annoy package
+    :members:
+    :inherited-members:
+
