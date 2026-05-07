@@ -98,11 +98,11 @@ def dcx_to_cc_dicts(map_files):
 
 def accession_to_genename(map_files):
     prot2gene = collections.defaultdict(set)
-    with open(map_files["human_proteome"] + "/download.wget", "r") as f:
+    with open(map_files["human_proteome"] + "/human_proteome.tab", "r") as f:
         reader = csv.reader(f, delimiter="\t")
         header = next(reader)
         entry_idx = header.index("Entry")
-        genenames_idx = header.index("Gene names")
+        genenames_idx = header.index("Gene Names")
         for r in reader:
             prot = r[entry_idx]
             gns = r[genenames_idx].split(" ")

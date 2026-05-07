@@ -724,6 +724,7 @@ class Parser():
         file_path = map_paths[molrepo_name]
         chunk = list()
         f = open(file_path, "r")
+        f.readline()  # skip header
         for l in f:
             l = l.rstrip("\n").split("\t")
             if len(l) < 2:
@@ -763,8 +764,8 @@ class Parser():
             l = l.rstrip("\n").split("\t")
             if len(l) < 2:
                 continue
-            src_ids = l[7].split(", ")
-            smis = l[8].split(", ")
+            src_ids = l[6].split(", ")
+            smis = l[7].split(", ")
             for (src_id, smi) in zip(src_ids, smis):
                 try:
                     inchikey, inchi = converter.smiles_to_inchi(smi)

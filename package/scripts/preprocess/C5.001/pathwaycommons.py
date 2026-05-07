@@ -10,7 +10,7 @@ from chemicalchecker.database import Dataset
 from chemicalchecker.tool.hotnet import Hotnet
 
 
-DBS = set(['Reactome', 'KEGG', 'NetPath', 'PANTHER', 'WikiPathways'])
+DBS = set(['Reactome', 'KEGG', 'NetPath', 'PANTHER'])
 
 
 @logged
@@ -125,7 +125,7 @@ class pathwaycommons():
             map_files[ds.datasource_name] = ds.data_path
 
         DATA = os.path.join(
-            map_files["pathwaycommons_hgnc"], "PathwayCommons9.All.hgnc.txt")
+            map_files["pathwaycommons_hgnc"], "PathwayCommons12.All.hgnc.txt")
 
         Map = self._read_mapping()
         self._download_pathwaycommons(DATA)
