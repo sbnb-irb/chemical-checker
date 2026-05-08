@@ -294,8 +294,8 @@ class Datasource(Base):
         params["job_name"] = "CC_DOWNLOAD"
         params["elements"] = ds_names
         params["wait"] = True
-        params["cpu"] = 4
-        params["mem_by_core"] = 20
+        params["cpu"] = 1
+        params["mem_by_core"] = 4
         # job command
         singularity_image = cfg.PATH.SINGULARITY_IMAGE
         command = "SINGULARITYENV_PYTHONPATH={} SINGULARITYENV_CC_CONFIG={}" +\
