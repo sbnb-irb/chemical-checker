@@ -4,12 +4,13 @@
 # namely chembl_drugtargets.txt and chembl_indications.txt
 
 import os
+import signal
+import time
 import pandas as pd
 from chembl_webresource_client.new_client import new_client
 
 
-#-----------Generating chembl_drugtargets.txt
-# ----------functions
+# ------------------------ Functions ----------------------- #
 
 # Parsing the references of each record
 def parseReference(refList):
@@ -46,33 +47,72 @@ def checkNone(inputElem, clau, isList=False, subfield=None):
         return "; ".join(tmp)
 
     elif not isList and subfield:
-        inputElem[clau][subfield]
+        return inputElem[clau][subfield]
 
     else:
         return inputElem[clau]
 
-# ----Main
+
+class _PageTimeout(Exception):
+    pass
 
 
+def _sigalrm_handler(signum, frame):
+    raise _PageTimeout("page fetch timed out (SIGALRM)")
+
+
+def _fetch_with_retry(get_queryset, label, page_timeout=20, max_retries=200):
+    """Iterate a ChEMBL queryset with a hard per-page SIGALRM timeout and retry.
+
+    get_queryset is a callable so a fresh queryset is created on each retry,
+    avoiding corrupted internal pagination state after a failed iteration.
+    Caching is left enabled so retried runs skip already-fetched pages.
+    """
+    signal.signal(signal.SIGALRM, _sigalrm_handler)
+
+    for attempt in range(1, max_retries + 1):
+        try:
+            results = []
+            it = iter(get_queryset())
+            i = 0
+            while True:
+                signal.alarm(page_timeout)
+                try:
+                    elem = next(it)
+                except StopIteration:
+                    signal.alarm(0)
+                    break
+                signal.alarm(0)
+                if i % 500 == 0:
+                    print("  %s: %d records fetched..." % (label, i))
+                results.append(elem)
+                i += 1
+            print("  %s: done, %d total records." % (label, len(results)))
+            return results
+        except (_PageTimeout, Exception) as e:
+            signal.alarm(0)
+            print("  %s: error on attempt %d/%d: %s" % (label, attempt, max_retries, e))
+            if attempt == max_retries:
+                raise
+            print("  %s: retrying in 20s..." % label)
+            time.sleep(20)
+    return []
+
+# -------------------------- Main ------------------------- #
+# ----------- Generating chembl_drugtargets.txt ----------- #
 def generate_chembl_files():
 
     outPutDir = "/aloy/web_checker/repo_data"
     output = os.path.join(outPutDir, "chembl_drugtargets.tsv")
 
     if not os.path.exists(output):
-        # Extracting the relevant fields from drug
-        outListDic = []
-
-        # Extracting the relevant fields from their drug database
-        outListDic = []
-
-        drugs = new_client.drug
         print("Generating chembl_drugtargets.tsv")
-        print("Number of records in chembl drug:", len(drugs))
-        print("processing, please wait...")
+        print("Number of records in chembl drug:", len(new_client.drug))
 
-        for elem in drugs:
+        drug_records = _fetch_with_retry(lambda: new_client.drug, "drugs")
 
+        outListDic = []
+        for elem in drug_records:
             outListDic.append({'CHEMBL_ID': elem['molecule_chembl_id'],
                                # take the first one
                                'SYNONYMS': checkNone(elem, 'molecule_synonyms', subfield='molecule_synonym', isList=True),
@@ -144,10 +184,10 @@ def generate_chembl_files():
     output = os.path.join(outPutDir, "chembl_indications.tsv")
 
     if not os.path.exists(output):
-        indications = new_client.drug_indication
-        print("Generating chembldrugtargets.tsv")
-        print("NUMBER OF RECORDS FOR INDICATION:", len(indications))
-        print("processing, please wait...")
+        print("Generating chembl_indications.tsv")
+        print("NUMBER OF RECORDS FOR INDICATION:", len(new_client.drug_indication))
+
+        indication_records = _fetch_with_retry(lambda: new_client.drug_indication, "indications")
 
         # Main2
         outListDic = []
@@ -155,7 +195,7 @@ def generate_chembl_files():
         # Also Get a fixed list of CHEMBL_IDs to retrieve
         chembl_ids = set()
 
-        for elem in indications:
+        for elem in indication_records:
             outListDic.append({'MOLECULE_CHEMBL_ID': elem['molecule_chembl_id'],
                                'MESH_ID': elem['mesh_id'],
                                'MESH_HEADING': elem['mesh_heading'],
@@ -181,19 +221,19 @@ def generate_chembl_files():
                          'first_approval': 'FIRST_APPROVAL',
                          'usan_year': 'USAN_YEAR'}
 
-        molecules = new_client.molecule.filter(
-            molecule_chembl_id__in=chembl_ids).only(list(fields_to_get.keys()))
-        print("Number of distinct molecules:", len(molecules))
+        api_fields = list(fields_to_get.keys())
+        molecule_records = _fetch_with_retry(
+            lambda: new_client.molecule.filter(
+                molecule_chembl_id__in=chembl_ids).only(api_fields),
+            "molecules")
+        print("Number of distinct molecules:", len(molecule_records))
 
-        # Adding the missing columns in the dataframe (can last several
-        # minutes)
-        for f in list(fields_to_get.keys())[1:]:
+        # Adding the missing columns in the dataframe in a single pass
+        mol_lookup = {mol['molecule_chembl_id']: mol for mol in molecule_records}
+        for f in api_fields[1:]:
             new_field = fields_to_get[f]
-            df[new_field] = ''
-            # Now change several entries at once in df
-            for mol in molecules:
-                df.loc[df.MOLECULE_CHEMBL_ID == mol[
-                    'molecule_chembl_id'], new_field] = mol[f]
+            df[new_field] = df['MOLECULE_CHEMBL_ID'].map(
+                lambda cid: mol_lookup.get(cid, {}).get(f, ''))
 
         # Writing the TSV file
         print("writing", output)
