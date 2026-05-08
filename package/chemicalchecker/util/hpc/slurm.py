@@ -31,8 +31,6 @@ class slurm():
 #
 #
 
-#SBATCH -p sbnb_cpu_zen3,irb_cpu_iclk
-#SBATCH --nodelist=irbccn[05-08],irbccn16
 #SBATCH --nice=2147483645
 
 #SBATCH --time=10-00:00:00
@@ -145,6 +143,8 @@ export SINGULARITY_BIND="/home/sbnb:/aloy/home,/data/sbnb/data:/aloy/data,/data/
 
         jobParams = ["#SBATCH -J " + self.job_name]
         jobParams.append("#SBATCH --chdir=" + self.jobdir)
+        if self.queue:
+            jobParams.append("#SBATCH -p " + self.queue)
 
         if( membycore != None ):
             jobParams.append( f"#SBATCH --mem-per-cpu={ membycore }G" )
