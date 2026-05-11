@@ -262,7 +262,9 @@ class Datasource(Base):
             "data = inputs[task_id]",  # elements for current job
             "for d in data:",  # elements are indexes
             "    ds = Datasource.get(name=d)",  # query the db
+            "    print('START datasource: ' + str(d), flush=True)",
             "    ds[0].download()",  # start download
+            "    print('DONE datasource: ' + str(d), flush=True)",
             "print('JOB DONE')"
         ]
         script_name = os.path.join(job_path, 'download_script.py')

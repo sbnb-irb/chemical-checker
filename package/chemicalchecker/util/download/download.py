@@ -2,6 +2,7 @@
 import os
 import sys
 import shutil
+import signal
 import tempfile
 import zlib
 import mimetypes
@@ -104,27 +105,43 @@ class Downloader():
 
     
 
-    def _download_and_decompress_file( self, url, filename):
-        response = reqs.get(url, stream=True)
-        decompressor = zlib.decompressobj(16 + zlib.MAX_WBITS)
-        
-        with open(filename, 'w+') as f:
-            while True:
-                try:
-                    chunk = response.raw.read(1024)
-                    if not chunk:
-                        break
-                    string = decompressor.decompress(chunk).decode("utf-8",errors='ignore')
-                    f.write(string)
-                except:
-                    pass
-        
+    _CONNECT_TIMEOUT = 60
+    _READ_TIMEOUT = 7200
+    _MAX_ATTEMPTS = 5
+
+    def _download_and_decompress_file(self, url, filename):
+        for attempt in range(self._MAX_ATTEMPTS):
+            try:
+                response = reqs.get(url, stream=True,
+                                    timeout=(self._CONNECT_TIMEOUT, self._READ_TIMEOUT))
+                decompressor = zlib.decompressobj(16 + zlib.MAX_WBITS)
+                with open(filename, 'w+') as f:
+                    while True:
+                        chunk = response.raw.read(1024)
+                        if not chunk:
+                            break
+                        string = decompressor.decompress(chunk).decode("utf-8", errors='ignore')
+                        f.write(string)
+                return
+            except Exception as err:
+                self.__log.warning('Attempt %d/%d failed: %s', attempt + 1, self._MAX_ATTEMPTS, str(err))
+                sleep(5)
+        raise Exception('All attempts to download (decompress) failed.')
+
     def _download_file(self, url, filename):
-        response = reqs.get(url, stream=True)
-        chsize = 1024 # 4096
-        with open(filename, 'wb') as f:
-            for chunk in response.iter_content( chunk_size=chsize ):
-                f.write(chunk)
+        for attempt in range(self._MAX_ATTEMPTS):
+            try:
+                response = reqs.get(url, stream=True,
+                                    timeout=(self._CONNECT_TIMEOUT, self._READ_TIMEOUT))
+                chsize = 1024
+                with open(filename, 'wb') as f:
+                    for chunk in response.iter_content(chunk_size=chsize):
+                        f.write(chunk)
+                return
+            except Exception as err:
+                self.__log.warning('Attempt %d/%d failed: %s', attempt + 1, self._MAX_ATTEMPTS, str(err))
+                sleep(5)
+        raise Exception('All attempts to download failed.')
                 
     def download(self):
         """Perform the download."""
@@ -175,9 +192,18 @@ class Downloader():
                 # or has to be downloaded, in case try several times
                 attempts = 0
                 downloaded = False
+
+                def _wget_timeout_handler(signum, frame):
+                    raise TimeoutError("wget download timed out")
+
                 while attempts < 5:
                     try:
-                        wget.download(self.url, tmp_file)
+                        signal.signal(signal.SIGALRM, _wget_timeout_handler)
+                        signal.alarm(self._READ_TIMEOUT)
+                        try:
+                            wget.download(self.url, tmp_file)
+                        finally:
+                            signal.alarm(0)
                         downloaded = True
                         break
                     except Exception as err:
