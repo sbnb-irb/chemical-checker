@@ -162,16 +162,18 @@ class Downloader():
         self.__log.debug('temp download dir %s', tmp_dir)
         # set wget user agent
 
-        if(self.username!=None and self.password!=None):
+        parsed_scheme = urlparse(self.url).scheme
+        if self.username is not None and self.password is not None and parsed_scheme != 'file':
             tmp_file = os.path.join( tmp_dir, 'dbfile.xml.zip')
             try:
-                response = reqs.get( self.url, auth = HTTPBasicAuth( self.username, self.password ), stream=True )
+                response = reqs.get(self.url, auth=HTTPBasicAuth(self.username, self.password),
+                                    stream=True, timeout=(self._CONNECT_TIMEOUT, self._READ_TIMEOUT))
                 with open(tmp_file, 'wb') as zfile:
                     for i, chunk in enumerate(response.iter_content(chunk_size=1024)):
                         zfile.write(chunk)
-            except:
-                raise Exception('Failed on authenticated data acquirement')
-        else:            
+            except Exception as err:
+                raise Exception('Failed on authenticated data acquirement: %s' % err)
+        else:
             class MyOpener(urllib.request.FancyURLopener):
                 version = 'Mozilla/5.0'
             wget.ulib.urlretrieve = MyOpener().retrieve
