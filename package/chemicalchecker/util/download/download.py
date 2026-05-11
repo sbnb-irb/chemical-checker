@@ -271,10 +271,16 @@ class Downloader():
                 ' ' + self.dbname + " && "
                 
             if( file_path.endswith('.dmp') ):
+                # pg_restore outputs plain SQL to stdout; filter SET params
+                # unsupported by older PostgreSQL before piping into psql
+                pg_unsupported = 'idle_in_transaction_session_timeout\\|transaction_timeout'
                 cmd2run += 'PGPASSWORD=' + Config().DB.password + \
-                ' pg_restore --no-privileges --no-owner -h ' + Config().DB.host+ \
-                " -U " + Config().DB.user+ \
-                ' -d ' + self.dbname + ' < ' + file_path
+                ' pg_restore --no-privileges --no-owner -f - ' + file_path + \
+                " | grep -v '" + pg_unsupported + "'" + \
+                ' | PGPASSWORD=' + Config().DB.password + \
+                ' psql -h ' + Config().DB.host + \
+                " -U " + Config().DB.user + \
+                ' -d ' + self.dbname
             else:
                 cmd2run += 'PGPASSWORD=' + Config().DB.password + \
                 ' psql -h ' + Config().DB.host+ \
