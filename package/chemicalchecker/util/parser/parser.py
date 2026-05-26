@@ -283,11 +283,7 @@ class Parser():
         except ImportError:
             raise ImportError("requires pybel " +
                               "http://openbabel.org")
-        try:
-            import wget
-        except ImportError:
-            raise ImportError("requires wget " +
-                              "http://bitbucket.org/techtonik/python-wget/src")
+        from .request_helpers import _urlopen_retry
         converter = Converter()
 
         file_path = map_paths["kegg_br"]
@@ -310,11 +306,13 @@ class Parser():
             # download mol if not available
             mol_path = os.path.join(kegg_download, '%s.mol' % src_id)
             if not os.path.isfile(mol_path):
-                url = "http://rest.kegg.jp/get/" + src_id + "/mol"
+                url = "https://rest.kegg.jp/get/" + src_id + "/mol"
                 try:
-                    wget.download(url, mol_path)
-                except Exception:
-                    Parser.__log.error('Cannot download: %s', url)
+                    content = _urlopen_retry(url, timeout=60, retries=5, backoff=5).read()
+                    with open(mol_path, 'wb') as f:
+                        f.write(content)
+                except Exception as err:
+                    Parser.__log.error('Cannot download %s: %s', url, str(err))
                     continue
             mol = pybel.readfile("mol", mol_path)
             for m in mol:
