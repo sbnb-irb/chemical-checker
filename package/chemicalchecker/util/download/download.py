@@ -233,10 +233,17 @@ class Downloader():
         tmp_unzip_dir = os.path.join(tmp_dir, 'unzip')
         os.mkdir(tmp_unzip_dir)
         self.__log.debug('temp unzip dir %s', tmp_unzip_dir)
-        # not a clear way to check if file is compressed, just try
+        # Check magic bytes first — covers cases where the filename extension
+        # does not match actual compression (e.g. wget falls back to self.file)
+        with open(tmp_file, 'rb') as _fb:
+            _magic = _fb.read(2)
+        _is_compressed = _magic == b'\x1f\x8b' or _magic == b'PK'
         mime, compression = mimetypes.guess_type(tmp_file)
         self.__log.debug("MIME %s COMPRESSION %s", mime, compression)
-        if compression not in patoolib.ArchiveMimetypes.values():
+        # compression is None for .zip — check mime and magic bytes too
+        if (not _is_compressed and
+                mime not in patoolib.ArchiveMimetypes.values() and
+                compression not in patoolib.ArchiveMimetypes.values()):
             self.__log.debug('no need to uncompress %s, copying', tmp_file)
             shutil.move(tmp_file, tmp_unzip_dir)
         else:
