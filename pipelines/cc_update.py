@@ -34,7 +34,7 @@ import json
 import logging
 import argparse
 import tempfile
-from update_resources import generate_chembl_files
+from update_resources import generate_chembl_files, fetch_pharmacodb
 
 from chemicalchecker import ChemicalChecker
 from chemicalchecker.core import Validation
@@ -278,6 +278,9 @@ def main(args):
         # Generate the Chembl files drugtargets and drugindications via
         # Chembl Python API in /aloy/web_checker/repo_data
         generate_chembl_files()
+
+        # Generate the PharmacoDB postgreSQL database via API queries
+        fetch_pharmacodb()
 
         job_path = tempfile.mkdtemp(prefix='jobs_download_', dir=tmpdir)
         # start download jobs (one per Datasource)
