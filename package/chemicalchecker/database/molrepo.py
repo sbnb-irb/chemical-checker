@@ -13,6 +13,7 @@ Example::
 
 """
 import os
+import logging
 import datetime
 import tempfile
 from time import time
@@ -336,9 +337,15 @@ class Molrepo(Base):
             if only_essential and not molrepo.essential:
                 continue
             molrepos_names.add(molrepo.molrepo_name)
-        
-        for ds in molrepos_names:
+
+        priority = ["ctd"] # You can change the priority list.
+        # This is useful for debugging a failing repo.
+        ordered = [p for p in priority if p in molrepos_names]
+        ordered += [ds for ds in sorted(molrepos_names) if ds not in priority]
+        for ds in ordered:
+            logging.getLogger().info("Starting molrepo: %s", ds)
             Molrepo.from_molrepo_name(ds)
+            logging.getLogger().info("Finished molrepo: %s", ds)
     
     @staticmethod
     def molrepo_hpc(tmpdir, only_essential=False, **kwargs):
