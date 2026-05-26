@@ -551,7 +551,9 @@ class Parser():
             S = set()
             for l in f:
                 l = l.split("\t")
-                S.update([l[1]])
+                # meddra_all_se uses STITCH 4 flat IDs (CID0XXXXXXXX); convert
+                # to STITCH 5 stereo format (CIDsXXXXXXXX) to match chemicals.v5.0.tsv
+                S.update([l[1].replace('CID0', 'CIDs', 1)])
 
         with open(stitch_file, "r") as f:
             stitch = {}
@@ -563,7 +565,10 @@ class Parser():
 
         for s in list(S):
             src_id = s
-            smi = stitch[s]
+            smi = stitch.get(s)
+            if smi is None:
+                Parser.__log.warning("SIDER ID %s: not found in chemicals file, skipping", s)
+                continue
             try:
                 inchikey, inchi = converter.smiles_to_inchi(smi)
             except Exception as ex:
