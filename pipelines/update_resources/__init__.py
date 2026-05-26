@@ -1,1 +1,2 @@
 from .generate_chembl_files import generate_chembl_files
+from .fetch_pharmacodb import fetch_pharmacodb

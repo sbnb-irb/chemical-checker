@@ -850,7 +850,7 @@ class Parser():
 
     @staticmethod
     def pharmacodb(file_path, molrepo_name, chunks=1000):
-        from pubchempy import Compound
+        from .request_helpers import _urlopen_retry
         converter = Converter()
         # no file to parse here, but querying the chembl database
         query = "SELECT drug_id, smiles, pubchem FROM drug_annots WHERE smiles IS NOT NULL or pubchem IS NOT NULL"
@@ -864,8 +864,12 @@ class Parser():
             pubchem = row[2]
             if (smiles is None or smiles == "-666") and pubchem is not None:
                 try:
-                    smiles = Compound.from_cid(pubchem).isomeric_smiles
-                except:
+                    url = (
+                        "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound"
+                        "/cid/%s/property/IsomericSMILES/TXT/" % pubchem
+                    )
+                    smiles = _urlopen_retry(url).read().rstrip().decode()
+                except Exception:
                     continue
             if smiles is None or smiles == "-666":
                 continue
