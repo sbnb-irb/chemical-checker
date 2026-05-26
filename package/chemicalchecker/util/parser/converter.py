@@ -5,6 +5,7 @@ from six.moves.urllib.request import urlopen
 from six.moves.urllib.parse import quote
 
 from chemicalchecker.util import logged
+from .request_helpers import _cache, _urlopen_retry
 
 
 class ConversionError(Exception):
@@ -112,54 +113,71 @@ class Converter:
     @staticmethod
     def ctd_to_smiles(ctdid):
         """From CTD identifier to SMILES."""
+        key = "ctd_smiles:" + ctdid
+        cached = _cache.get(key)
+        if cached is not None:
+            return cached
         # convert to pubchemcid
         try:
             url = (
-                "http://pubchem.ncbi.nlm.nih.gov/rest/pug/substance/"
+                "https://pubchem.ncbi.nlm.nih.gov/rest/pug/substance/"
                 + "sourceid/Comparative%20Toxicogenomics%20Database/"
                 + ctdid
                 + "/cids/TXT/"
             )
-            pubchemcid = urlopen(url).read().rstrip().decode()
+            pubchemcid = _urlopen_retry(url).read().rstrip().decode()
         except Exception as ex:
             Converter.__log.warning(str(ex))
             raise ConversionError("Cannot fetch PubChemID CID from CTD", ctdid)
         # get smiles
         try:
             url = (
-                "http://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/"
+                "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/"
                 + "cid/%s/property/CanonicalSMILES/TXT/" % pubchemcid
             )
-            smiles = urlopen(url).read().rstrip().decode()
+            smiles = _urlopen_retry(url).read().rstrip().decode()
         except Exception as ex:
             Converter.__log.warning(str(ex))
             raise ConversionError("Cannot fetch SMILES from PubChemID CID", pubchemcid)
+        _cache.set(key, smiles)
         return smiles
 
     @staticmethod
     def chemical_name_to_smiles(chem_name):
         """From Chemical Name to SMILES via cactus.nci or pubchem."""
+        key = "name_smiles:" + chem_name
+        cached = _cache.get(key)
+        if cached is not None:
+            return cached
         smiles = None
         chem_name_quoted = quote(chem_name)
         smiles = Converter._chemical_name_to_smiles_cactus(chem_name_quoted)
         if smiles is not None:
+            _cache.set(key, smiles)
             return smiles
         smiles = Converter._chemical_name_to_smiles_pubchem(chem_name)
         if smiles is None:
             raise ConversionError("Cannot fetch SMILES from Chemical Name", chem_name)
+        _cache.set(key, smiles)
         return smiles
 
     @staticmethod
     def chemical_name_to_inchi(chem_name):
         """From Chemical Name to InChI via cactus.nci or pubchem."""
+        key = "name_inchi:" + chem_name
+        cached = _cache.get(key)
+        if cached is not None:
+            return cached
         inchi = None
         chem_name_quoted = quote(chem_name)
         inchi = Converter._chemical_name_to_inchi_cactus(chem_name_quoted)
         if inchi is not None:
+            _cache.set(key, inchi)
             return inchi
         inchi = Converter._chemical_name_to_inchi_pubchem(chem_name)
         if inchi is None:
             raise ConversionError("Cannot fetch InChI from Chemical Name", chem_name)
+        _cache.set(key, inchi)
         return inchi
 
     @staticmethod
@@ -167,10 +185,10 @@ class Converter:
         """From chemical name to SMILES."""
         try:
             url = (
-                "http://cactus.nci.nih.gov/chemical/"
+                "https://cactus.nci.nih.gov/chemical/"
                 + "structure/%s/smiles" % chem_name
             )
-            smiles = urlopen(url).read().rstrip().decode()
+            smiles = _urlopen_retry(url).read().rstrip().decode()
             return smiles
         except Exception as ex:
             Converter.__log.warning(
@@ -183,10 +201,10 @@ class Converter:
         """From chemical name to InChI."""
         try:
             url = (
-                "http://cactus.nci.nih.gov/chemical/"
+                "https://cactus.nci.nih.gov/chemical/"
                 + "structure/%s/stdinchi" % chem_name
             )
-            inchi = urlopen(url).read().rstrip().decode()
+            inchi = _urlopen_retry(url).read().rstrip().decode()
             return inchi
         except Exception as ex:
             Converter.__log.warning(
