@@ -157,7 +157,7 @@ def parse_bindingdb(ACTS=None, bindingdb_file=None):
     kd_idx = header.index("Kd (nM)")
     ec50_idx = header.index("EC50 (nM)")
     uniprot_ac_idx = header.index(
-        "UniProt (SwissProt) Primary ID of Target Chain")
+        "UniProt (SwissProt) Primary ID of Target Chain 1")
     nchains_idx = header.index(
         "Number of Protein Chains in Target (>1 implies a multichain complex)")
 
@@ -167,12 +167,15 @@ def parse_bindingdb(ACTS=None, bindingdb_file=None):
 
     # Now get the activity.
 
+    min_cols = max(nchains_idx, bdlig_idx, ki_idx, ic50_idx,
+                   kd_idx, ec50_idx, uniprot_ac_idx) + 1
+
     f = open(bindingdb_file, "r")
     f.readline()
     for l in f:
 
         l = l.rstrip("\n").split("\t")
-        if len(l) < nchains_idx:
+        if len(l) < min_cols:
             continue
         if l[nchains_idx] == '':
             continue
@@ -193,6 +196,8 @@ def parse_bindingdb(ACTS=None, bindingdb_file=None):
         uniprot_ac = l[uniprot_ac_idx]
         if not uniprot_ac:
             continue
+#        if( uniprot_ac.find('[')!=-1 ):
+#            uniprot_ac = uniprot_ac['['][0]
         for p in uniprot_ac.split(","):
             ACTS[(inchikey, p, inchikey_inchi[inchikey])] += [act]
     f.close()
