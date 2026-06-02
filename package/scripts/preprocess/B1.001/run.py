@@ -310,7 +310,8 @@ def main(args):
         class_prot, G = create_class_prot()
 
         # save them to disk
-        nx.write_gpickle(G, os.path.join(args.models_path, graph_file))
+        with open(os.path.join(args.models_path, graph_file), 'wb') as fh:
+            pickle.dump(G, fh)
         with open(os.path.join(args.models_path, class_prot_file), 'wb') as fh:
             pickle.dump(class_prot, fh)
 
@@ -335,7 +336,8 @@ def main(args):
                 ACTS[(items[0], items[1])] = v
 
         # read protein class dictionary and graph
-        G = nx.read_gpickle(os.path.join(args.models_path, graph_file))
+        with open(os.path.join(args.models_path, graph_file), 'rb') as fh:
+            G = pickle.load(fh)
         class_prot = pickle.load(
             open(os.path.join(args.models_path, class_prot_file), 'rb'))
 

@@ -246,7 +246,8 @@ def main(args):
 
         class_prot, G = create_class_prot()
 
-        nx.write_gpickle(G, os.path.join(args.models_path, graph_file))
+        with open(os.path.join(args.models_path, graph_file), 'wb') as fh:
+            pickle.dump(G, fh)
 
         with open(os.path.join(args.models_path, class_prot_file), 'wb') as fh:
             pickle.dump(class_prot, fh)
@@ -259,7 +260,8 @@ def main(args):
             features_list = hf["features"][:]
             features = set(features_list)
 
-        G = nx.read_gpickle(os.path.join(args.models_path, graph_file))
+        with open(os.path.join(args.models_path, graph_file), 'rb') as fh:
+            G = pickle.load(fh)
 
         class_prot = pickle.load(
             open(os.path.join(args.models_path, class_prot_file), 'rb'))

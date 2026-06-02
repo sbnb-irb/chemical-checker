@@ -111,7 +111,8 @@ def main(args):
         main._log.info("Parsing the ChEBI ontology...")
         CHEBI = parse_chebi(chebi_obo)
 
-        nx.write_gpickle(CHEBI, os.path.join(args.models_path, graph_file))
+        with open(os.path.join(args.models_path, graph_file), 'wb') as fh:
+            pickle.dump(CHEBI, fh)
 
     if args.method == "predict":
 
@@ -119,7 +120,8 @@ def main(args):
             features_list = hf["features"][:]
             features = set(features_list)
 
-        CHEBI = nx.read_gpickle(os.path.join(args.models_path, graph_file))
+        with open(os.path.join(args.models_path, graph_file), 'rb') as fh:
+            CHEBI = pickle.load(fh)
 
         with open(args.input_file) as f:
 
