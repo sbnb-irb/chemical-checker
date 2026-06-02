@@ -494,7 +494,7 @@ def main(args):
 
             params = {}
 
-            params["num_jobs"] = len(uniprots) / 20
+            params["num_jobs"] = len(uniprots) // 20
             params["jobdir"] = job_path
             params["job_name"] = "CC_C4_bpan"
             params["elements"] = list(uniprots)
