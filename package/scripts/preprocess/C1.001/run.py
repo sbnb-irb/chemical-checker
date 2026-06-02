@@ -30,19 +30,24 @@ def parse_chebi(chebi_obo):
             "relationship: is_conjugate_base_of ",
             "relationship: is_tautomer_of ",
             "relationship: is_enantiomer_of ",
-            "relationship: has_role "]
+            "relationship: has_role ",
+            "relationship: RO:0000087 ",   # has_role
+            "relationship: RO:0018033 ",   # is_conjugate_base_of
+            "relationship: RO:0018034 ",   # is_conjugate_acid_of
+            "relationship: RO:0018036 ",   # is_tautomer_of
+            "relationship: RO:0018039 "]   # is_enantiomer_of
 
     f = open(chebi_obo, "r")
     terms = f.read().split("[Term]\n")
     for term in terms[1:]:
         term = term.split("\n")
-        chebi_id = term[0].split("id: ")[1]
+        chebi_id = term[0].split("id: ")[1].strip()
         CHEBI.add_node(chebi_id)
         parents = []
         for l in term[1:]:
             for cut in cuts:
                 if cut in l:
-                    parent_chebi_id = l.split(cut)[1]
+                    parent_chebi_id = l.split(cut)[1].split(" !")[0].strip()
                     parents += [parent_chebi_id]
         parents = sorted(set(parents))
         for p in parents:
