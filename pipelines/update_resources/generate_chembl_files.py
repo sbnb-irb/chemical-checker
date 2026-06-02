@@ -7,7 +7,6 @@ import os
 import signal
 import time
 import pandas as pd
-from chembl_webresource_client.new_client import new_client
 
 
 # ------------------------ Functions ----------------------- #
@@ -101,6 +100,7 @@ def _fetch_with_retry(get_queryset, label, page_timeout=20, max_retries=200):
 # -------------------------- Main ------------------------- #
 # ----------- Generating chembl_drugtargets.txt ----------- #
 def generate_chembl_files():
+    from chembl_webresource_client.new_client import new_client
 
     outPutDir = "/aloy/web_checker/repo_data"
     output = os.path.join(outPutDir, "chembl_drugtargets.tsv")
