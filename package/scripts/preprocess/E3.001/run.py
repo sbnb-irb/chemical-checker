@@ -30,7 +30,7 @@ def parse_sider(sider_file):
     with open(sider_file, "r") as f:
         for l in f:
             l = l.rstrip("\n").split("\t")
-            cid = l[1]
+            cid = l[1].replace('CID0', 'CIDs', 1)
             if cid not in cid_inchikey:
                 continue
             inchikey_raw_temp[cid_inchikey[cid]].update([l[2]])
