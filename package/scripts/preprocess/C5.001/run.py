@@ -503,26 +503,31 @@ def main(args):
                     os.makedirs(os.path.join(args.models_path, net), 0o775)
 
         if len(tasks) > 0:
-            params = {}
-            params["num_jobs"] = len(tasks)
-            params["jobdir"] = job_path
-            params["job_name"] = "CC_C5_nets"
-            params["elements"] = tasks
-            params["wait"] = True
-            params["memory"] = 2 * cpu
-            params["cpu"] = cpu
-            # job command
-            singularity_image = sing_image_nfs #'/aloy/home/oguitart/sing-images/cc.simg'
+            singularity_image = sing_image_nfs
             command = "singularity exec {} python {} <TASK_ID> <FILE>".format(
                 singularity_image, script_name)
-            # submit jobs
-            cluster = HPC.from_config(Config())
-            cluster.submitMultiJob(command, **params)
+            string_net_tasks = [t for t in tasks if t[0] == 'string_net']
+            other_tasks = [t for t in tasks if t[0] != 'string_net']
 
-            if cluster.status() == 'error':
-                main._log.error(
-                    "Networks job produced some errors. The preprocess script can't continue")
-                sys.exit(1)
+            # string_net causes OOM, so we assign more memory to it
+            for task_list, mem_by_core in [(string_net_tasks, 16), (other_tasks, 2)]:
+                if not task_list:
+                    continue
+                cluster = HPC.from_config(Config())
+                params = {}
+                params["num_jobs"] = len(task_list)
+                params["jobdir"] = job_path
+                params["job_name"] = "CC_C5_nets"
+                params["elements"] = task_list
+                params["wait"] = True
+                params["cpu"] = cpu
+                params["mem_by_core"] = mem_by_core
+                cluster.submitMultiJob(command, **params)
+
+                if cluster.status() == 'error':
+                    main._log.error(
+                        "Networks job produced some errors. The preprocess script can't continue")
+                    sys.exit(1)
 
         dataset = Dataset.get('B4.001')
 

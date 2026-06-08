@@ -36,12 +36,21 @@ def prepare_hotnet_input(outdir, all_binary_sif):
 
     G = nx.Graph()
 
+    def norm_chebi(token):
+        # PathwayCommons v14 mixes 'CHEBI:' and 'chebi:' casing; the chebi
+        # molrepo src_id is always uppercase 'CHEBI:...'
+        if token.lower().startswith("chebi:"):
+            return "CHEBI:" + token.split(":", 1)[1]
+        return token
+
     with open(all_binary_sif, "r") as f:
         for l in f:
             l = l.rstrip("\n").split("\t")
-            if l[0] in chebi_inchikey and l[2] in chebi_inchikey:
-                ik1 = chebi_inchikey[l[0]]
-                ik2 = chebi_inchikey[l[2]]
+            n0 = norm_chebi(l[0])
+            n2 = norm_chebi(l[2])
+            if n0 in chebi_inchikey and n2 in chebi_inchikey:
+                ik1 = chebi_inchikey[n0]
+                ik2 = chebi_inchikey[n2]
                 if ik1 is not None:
                     G.add_edge(ik1, ik2)
 
@@ -139,7 +148,7 @@ def main(args):
     if args.method == "fit":
 
         all_binary_sif = os.path.join(
-            map_files["molpathways"], "PathwayCommons11.All.hgnc.sif")
+            map_files["molpathways"], "pc-hgnc.sif")
         main._log.info("Preparing HotNet input")
 
         prepare_hotnet_input(args.models_path, all_binary_sif)

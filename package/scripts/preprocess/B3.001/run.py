@@ -33,6 +33,21 @@ def parse_ecod(ecod_domains):
 
     # Parse ECOD
     # [X-group].[H-group].[T-group].[F-group]
+    #
+    # New ECOD domains file (v294+) is tab-separated with a header row and
+    # the following columns (0-based indices used below):
+    #   1  -> ecod_domain_id
+    #   3  -> f_id  (X.H.T[.F])
+    #   4  -> pdb
+    #   23 -> ligand_comp_ids (comma-separated 3-letter PDB ligand codes,
+    #         or the sentinel "NO_LIGANDS_4A" when no ligand is bound)
+    # NB: the last column is now ligand_pdbnum (residue numbering), so the
+    # ligand component IDs must be read from the named column, not l[-1].
+    COL_DOMAIN_ID = 1
+    COL_F_ID = 3
+    COL_PDB = 4
+    COL_LIGAND_COMP_IDS = 23
+    NO_LIGANDS = "NO_LIGANDS_4A"
 
     inchikey_ecod = collections.defaultdict(set)
     map_pdb = collections.defaultdict(set)
@@ -40,20 +55,25 @@ def parse_ecod(ecod_domains):
 
     f = open(ecod_domains, "r")
     for l in f:
+        # skip comment lines and the (non-commented) header row
         if l[0] == "#":
             continue
         l = l.rstrip("\n").split("\t")
-        map_family_id[l[1]].update([l[3]])
-        map_pdb[l[4]].update([l[1]])
-        s = "E:" + l[1]
-        f_id = l[3].split(".")
+        if not l[0].isdigit():
+            continue
+        map_family_id[l[COL_DOMAIN_ID]].update([l[COL_F_ID]])
+        map_pdb[l[COL_PDB]].update([l[COL_DOMAIN_ID]])
+        s = "E:" + l[COL_DOMAIN_ID]
+        f_id = l[COL_F_ID].split(".")
         s += ",X:" + f_id[0]
         s += ",H:" + f_id[1]
         s += ",T:" + f_id[2]
         if len(f_id) == 4:
             s += ",F:" + f_id[3]
-        lig_ids = l[-1].split(",")
-        for lig_id in lig_ids:
+        lig_ids = l[COL_LIGAND_COMP_IDS]
+        if not lig_ids or lig_ids == NO_LIGANDS:
+            continue
+        for lig_id in lig_ids.split(","):
             if lig_id not in ligand_inchikey:
                 continue
             inchikey_ecod[ligand_inchikey[lig_id]].update([s])

@@ -125,7 +125,7 @@ class pathwaycommons():
             map_files[ds.datasource_name] = ds.data_path
 
         DATA = os.path.join(
-            map_files["pathwaycommons_hgnc"], "PathwayCommons12.All.hgnc.txt")
+            map_files["pathwaycommons_hgnc"], "pc-hgnc.txt")
 
         Map = self._read_mapping()
         self._download_pathwaycommons(DATA)

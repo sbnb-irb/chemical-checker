@@ -359,6 +359,7 @@ class sign0(BaseSignature, DataSignature):
         """
         BaseSignature.fit(self, **kwargs)
         self.clear()
+        self.__log.info("STARTING %s DATASET" % self.dataset)
         self.update_status("Getting data")
         if pairs is None and X is None and data_file is None:
             self.__log.debug("Runnning preprocess")
