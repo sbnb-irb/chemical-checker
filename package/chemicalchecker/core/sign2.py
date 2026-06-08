@@ -499,7 +499,8 @@ class sign2(BaseSignature, DataSignature):
         params["job_name"] = "CC_SIGN2_GRID_SEARCH_ADANET"
         params["elements"] = elements
         params["wait"] = False
-        params["memory"] = 32
+        # slurm/sge only honor mem_by_core (--mem-per-cpu); cpu defaults to 1
+        params["mem_by_core"] = 32  # 32GB total
         # job command
         singularity_image = Config().PATH.SINGULARITY_IMAGE
         command = "singularity exec {} python {} <TASK_ID> <FILE>".format(
@@ -578,7 +579,8 @@ class sign2(BaseSignature, DataSignature):
         params["job_name"] = "CC_SIGN2_GRID_SEARCH_NODE2VEC"
         params["elements"] = elements
         params["wait"] = False
-        params["memory"] = 6
+        # slurm/sge only honor mem_by_core (--mem-per-cpu); cpu defaults to 1
+        params["mem_by_core"] = 6  # 6GB total
         # job command
         singularity_image = Config().PATH.SINGULARITY_IMAGE
         command = "singularity exec {} python {} <TASK_ID> <FILE>".format(

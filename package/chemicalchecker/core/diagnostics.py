@@ -356,7 +356,13 @@ print('JOB DONE')
         params["elements"] = dataset_params
         params["wait"] = False
         params["check_error"] = False
-        params["memory"] = 30  # trial and error
+        # NB: slurm.py no longer honors the plain "memory" kwarg (the --mem
+        # block is commented out); memory is only requested through
+        # --mem-per-cpu, i.e. via "mem_by_core" * "cpu". Without this the
+        # jobs fall back to the partition default and OOM on the large
+        # molecule spaces (B4/B5, C3/C4/C5). Total mem = cpu * mem_by_core.
+        params["cpu"] = kwargs.get("cpu", 4)
+        params["mem_by_core"] = kwargs.get("mem_by_core", 16)  # 4*16 = 64GB
         # job command
         singularity_image = cfg.PATH.SINGULARITY_IMAGE
         command = "SINGULARITYENV_PYTHONPATH={} SINGULARITYENV_CC_CONFIG={}" \

@@ -124,47 +124,51 @@ def main(args):
     validation_sets = ['moa', 'atc']
 
     # HPC parameters and resources observations
+    # NB: slurm.py/sge.py only honor 'mem_by_core' (emitted as
+    # --mem-per-cpu); the plain 'memory' kwarg is dead code. Total job
+    # memory = cpu * mem_by_core. Values below preserve the previous totals
+    # (with headroom over the observed peaks noted in the comments).
     hpc_kwargs = {
         # sign0
         #  is using the most memory with ~GB
         #  is the one taking longer with ~s (h)
-        'sign0': {'mem_by_core': 30, 'memory': 60, 'cpu': 22},
+        'sign0': {'mem_by_core': 30, 'cpu': 4},
         # sign1 (w/o metric_learning) does not parallelize
         # B4 is using the most memory with ~12GB
         # C5 is the one taking longer with ~59000s (16.5h)
-        'sign1': {'memory': 16, 'cpu': 4},
+        'sign1': {'mem_by_core': 4, 'cpu': 4},     # 16GB
         # sign2 paralelize well and requires memory
         # A2 is using the most memory with ~42GB
         # A1 is the one taking longer with ~158000s (43h)
-        'sign2': {'memory': 40, 'cpu': 16},
+        'sign2': {'mem_by_core': 3, 'cpu': 16},    # 48GB
         # sign3
         # A1 is using the most memory with ~59GB
         # A1 is the one taking longer with ~186000s (52h)
-        'sign3': {'memory': 200, 'cpu': 8},
+        'sign3': {'mem_by_core': 25, 'cpu': 8},    # 200GB
         # sign4
-        'sign4': { 'memory': 200, 'cpu': 20 },
+        'sign4': {'mem_by_core': 10, 'cpu': 20},   # 200GB
         #'sign4': {'memory': 100, 'cpu': 8},
-        
+
         # neig1 paralelize very well and require very few memory
         # A2 is the one taking longer with ~9100s (2.5h)
-        'neig1': {'memory': 3, 'cpu': 16},
-        'neig2': {'memory': 3, 'cpu': 16},
-        'neig3': {'memory': 3, 'cpu': 16},
-        'neig4': {'memory': 3, 'cpu': 16},
+        'neig1': {'mem_by_core': 1, 'cpu': 16},    # 16GB
+        'neig2': {'mem_by_core': 1, 'cpu': 16},
+        'neig3': {'mem_by_core': 1, 'cpu': 16},
+        'neig4': {'mem_by_core': 1, 'cpu': 16},
         # clus1 does not paralelize very well and require memory
         # A1 is using the most memory ~28Gb
         # A1 is the one taking longer with ~10700s (3h)
-        'clus1': {'memory': 30, 'cpu': 4},
-        'clus2': {'memory': 30, 'cpu': 4},
-        'clus3': {'memory': 30, 'cpu': 4},
-        'clus4': {'memory': 30, 'cpu': 4},
+        'clus1': {'mem_by_core': 8, 'cpu': 4},     # 32GB
+        'clus2': {'mem_by_core': 8, 'cpu': 4},
+        'clus3': {'mem_by_core': 8, 'cpu': 4},
+        'clus4': {'mem_by_core': 8, 'cpu': 4},
         # proj1 paralelize very well and require few memory
         # A1 is using the most memory ~13Gb
         # A1 is the one taking longer with ~4500s (1.5h)
-        'proj1': {'memory': 20, 'cpu': 16},
-        'proj2': {'memory': 20, 'cpu': 16},
-        'proj3': {'memory': 20, 'cpu': 16},
-        'proj4': {'memory': 20, 'cpu': 16}
+        'proj1': {'mem_by_core': 2, 'cpu': 16},    # 32GB
+        'proj2': {'mem_by_core': 2, 'cpu': 16},
+        'proj3': {'mem_by_core': 2, 'cpu': 16},
+        'proj4': {'mem_by_core': 2, 'cpu': 16}
     }
 
     # on which signature molset to call the fit?
