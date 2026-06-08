@@ -170,7 +170,6 @@ def Calcdata(table_name):
             else:
                 dict_inchikey_inchi = inchikey_inchi_final
 
-            Molecule.add_missing_only(inchikey_inchi_final)
             # parse_fn yield a list of dictionaries with keys as a molprop
             parse_fn = DataCalculator.calc_fn(GenericCalcdata.__tablename__)
             # profile time
@@ -202,7 +201,7 @@ def Calcdata(table_name):
             inchikey(list): List of inchikey.
             cpu: Number of cores each job will use(default:1)
             wait: Wait for the job to finish (default:True)
-            memory: Maximum memory the job can take in Gigabytes(default: 5)
+            mem_by_core: Memory per core in Gigabytes (default: 5)
             num_jobs: Number of HPC jobs(default: 200)
             chunk_dbload: Number of elements loaded to the database
                 (default: 1000)
@@ -215,7 +214,7 @@ def Calcdata(table_name):
                 os.mkdir(job_path)
             cpu = kwargs.get("cpu", 1)
             wait = kwargs.get("wait", True)
-            memory = kwargs.get("memory", 5)
+            mem_by_core = kwargs.get("mem_by_core", 5)
             num_jobs = kwargs.get("num_jobs", 200)
             chunk_dbload = kwargs.get("chunk_dbload", 1000)
 
@@ -231,7 +230,7 @@ def Calcdata(table_name):
                 "inchikey = pickle.load(open(filename, 'rb'))[task_id]",
                 "mol = Calcdata('" + GenericCalcdata.__tablename__ + "')",
                 'mol.from_inchikey(inchikey, '
-                'missing_only=False, chunksize=%d)' % chunk_dbload,
+                'missing_only=True, chunksize=%d)' % chunk_dbload,
                 "print('JOB DONE')"
             ]
 
@@ -248,7 +247,7 @@ def Calcdata(table_name):
             params["elements"] = inchikey
             params["wait"] = wait
             params["cpu"] = cpu
-            params["memory"] = memory
+            params["mem_by_core"] = mem_by_core
             params["compress"] = False
             # job command
             singularity_image = cfg.PATH.SINGULARITY_IMAGE
