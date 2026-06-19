@@ -85,6 +85,11 @@
 # ── Jupyter notebooks (can be large with embedded outputs) ───────────────────
 *.ipynb filter=lfs diff=lfs merge=lfs -text
 
+# ── Specific CSVs to keep as text objects ─────────────────────────────────────
+/pipelines/update_resources/current_resources.csv -filter -diff -merge text
+/pipelines/update_resources/molrepo_has_datasource.csv-filter -diff -merge text
+/pipelines/update_resources/dataset_has_datasource.csv -filter -diff -merge text
+
 # ── Specific binary/data paths without standard extensions ───────────────────
 /tools/mol2svg filter=lfs diff=lfs merge=lfs -text
 /container/singularity/binaries/node2vec filter=lfs diff=lfs merge=lfs -text

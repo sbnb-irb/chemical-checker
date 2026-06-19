@@ -32,7 +32,7 @@ hgnc_complete,,f,https://storage.googleapis.com/public-download-files/hgnc/tsv/t
 disease_mappings,Source: disgenet,f,file:///aloy/web_checker/repo_data/disease_mappings/2026/disease_mappings.tsv,,,,f
 chembl_drugtargets,,f,file:///aloy/web_checker/repo_data/chembl_drugtargets.tsv,,,,f
 chembl_indications,,f,file:///aloy/web_checker/repo_data/chembl_indications.tsv,,,,f
-CTD_chemicals,,f,https://ctdbase.org/reports/CTD_chemicals.tsv.gz,,,,f
+CTD_chemicals,,f,https://ctdbase.org/reports/CTD_chemicals.tsv.gz,,,CTD_chemicals.tsv,f
 CTD_diseases,,f,https://ctdbase.org/reports/CTD_diseases.tsv.gz,,,,f
 ecod,,f,http://prodata.swmed.edu/ecod/distributions/ecod.latest.domains.txt,,,,f
 goa_human,,f,http://ftp.ebi.ac.uk/pub/databases/GO/goa/HUMAN/goa_human.gaf.gz,,,goa_human.gaf,f

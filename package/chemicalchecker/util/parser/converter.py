@@ -125,7 +125,8 @@ class Converter:
                 + ctdid
                 + "/cids/TXT/"
             )
-            pubchemcid = _urlopen_retry(url).read().rstrip().decode()
+            pubchemcid = _urlopen_retry(
+                url).read().rstrip().decode().splitlines()[0].strip()
         except Exception as ex:
             Converter.__log.warning(str(ex))
             raise ConversionError("Cannot fetch PubChemID CID from CTD", ctdid)
@@ -135,11 +136,75 @@ class Converter:
                 "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/"
                 + "cid/%s/property/CanonicalSMILES/TXT/" % pubchemcid
             )
-            smiles = _urlopen_retry(url).read().rstrip().decode()
+            smiles = _urlopen_retry(
+                url).read().rstrip().decode().splitlines()[0].strip()
         except Exception as ex:
             Converter.__log.warning(str(ex))
             raise ConversionError("Cannot fetch SMILES from PubChemID CID", pubchemcid)
         _cache.set(key, smiles)
+        return smiles
+
+    @staticmethod
+    def _cid_to_canonical_smiles(cid):
+        """Fetch the (non-stereo) CanonicalSMILES for a PubChem CID.
+
+        ``CTD_chemicals.tsv`` stores the CID with a ``CID:`` prefix (and may list
+        several, pipe-separated); normalise to the first bare numeric id.
+        """
+        cid = str(cid).split("|")[0].replace("CID:", "").strip()
+        url = (
+            "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/"
+            + "cid/%s/property/CanonicalSMILES/TXT/" % cid
+        )
+        return _urlopen_retry(url).read().rstrip().decode().splitlines()[0].strip()
+
+    @staticmethod
+    def ctd_file_to_smiles(pubchem_cid="", inchikey="", casrn=""):
+        """Resolve a CTD chemical to SMILES from the structure identifiers already
+        present in ``CTD_chemicals.tsv``.
+
+        This bypasses the decayed CTD-id -> PubChem-substance bridge (whose
+        substance->compound links drift between releases) by going straight to a
+        stable identifier. Every route ends in ``CanonicalSMILES`` so the resulting
+        InChIKey is non-stereo, consistent with :meth:`ctd_to_smiles`. Tries, in
+        order, PubChem CID, then InChIKey, then CasRN. Returns SMILES or ``None``.
+        """
+        key = "ctd_file_smiles:%s|%s|%s" % (pubchem_cid, inchikey, casrn)
+        cached = _cache.get(key)
+        if cached is not None:
+            return cached
+        smiles = None
+        # 1. PubChem CID -> CanonicalSMILES (direct, most stable)
+        if pubchem_cid:
+            try:
+                smiles = Converter._cid_to_canonical_smiles(pubchem_cid.split("|")[0])
+            except Exception as ex:
+                Converter.__log.warning("ctd_file CID lookup failed: %s", str(ex))
+        # 2. InChIKey -> CanonicalSMILES (normalises to the non-stereo form)
+        if not smiles and inchikey:
+            try:
+                url = (
+                    "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/"
+                    + "inchikey/%s/property/CanonicalSMILES/TXT/"
+                    % quote(inchikey.split("|")[0])
+                )
+                smiles = _urlopen_retry(url).read().rstrip().decode().splitlines()[0].strip()
+            except Exception as ex:
+                Converter.__log.warning("ctd_file InChIKey lookup failed: %s", str(ex))
+        # 3. CasRN -> CID -> CanonicalSMILES
+        if not smiles and casrn:
+            try:
+                url = (
+                    "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/"
+                    + "name/%s/cids/TXT/" % quote(casrn.split("|")[0])
+                )
+                cid = _urlopen_retry(url).read().rstrip().decode().splitlines()[0].strip()
+                if cid.isdigit():
+                    smiles = Converter._cid_to_canonical_smiles(cid)
+            except Exception as ex:
+                Converter.__log.warning("ctd_file CasRN lookup failed: %s", str(ex))
+        if smiles:
+            _cache.set(key, smiles)
         return smiles
 
     @staticmethod
@@ -216,18 +281,28 @@ class Converter:
     def _chemical_name_to_smiles_pubchem(chem_name):
         """From chemical name to SMILES."""
         try:
-            cpds = self.pcp.get_compounds(chem_name, "name")
-            if len(cpds) == 0:
+            import pubchempy as pcp
+            # Use the property endpoint rather than the record-based
+            # ``isomeric_smiles``: PubChem renamed its SMILES properties so the
+            # old attribute is always empty. Request CanonicalSMILES (the
+            # non-stereo connectivity string, now returned under the
+            # ConnectivitySMILES key) to stay consistent with ctd_to_smiles,
+            # which keys E4 on the same non-stereo SMILES.
+            props = pcp.get_properties("CanonicalSMILES", chem_name, "name")
+            if not props:
                 Converter.__log.warning(
                     "Cannot convert Chemical Name "
                     "to SMILES (pubchem): %s" % chem_name
                 )
                 return None
-            if len(cpds) > 1:
+            if len(props) > 1:
                 Converter.__log.warning(
-                    "Multiple CIDs found, using first: %s" % str(cpds)
+                    "Multiple CIDs found, using first: %s" % str(props)
                 )
-            return cpds[0].isomeric_smiles
+            for key, value in props[0].items():
+                if "SMILES" in key and value:
+                    return value
+            return None
         except Exception as ex:
             Converter.__log.warning(
                 "Cannot convert Chemical Name " "to SMILES (pubchem): %s" % chem_name
@@ -238,17 +313,18 @@ class Converter:
     def _chemical_name_to_inchi_pubchem(chem_name):
         """From chemical name to InChI."""
         try:
-            cpds = self.pcp.get_compounds(chem_name, "name")
-            if len(cpds) == 0:
+            import pubchempy as pcp
+            props = pcp.get_properties("InChI", chem_name, "name")
+            if not props:
                 Converter.__log.warning(
                     "Cannot convert Chemical Name " "to InChI (pubchem): %s" % chem_name
                 )
                 return None
-            if len(cpds) > 1:
+            if len(props) > 1:
                 Converter.__log.warning(
-                    "Multiple CIDs found, using first: %s" % str(cpds)
+                    "Multiple CIDs found, using first: %s" % str(props)
                 )
-            return cpds[0].inchi
+            return props[0].get("InChI")
         except Exception as ex:
             Converter.__log.warning(
                 "Cannot convert Chemical Name " "to InChI (pubchem): %s" % chem_name

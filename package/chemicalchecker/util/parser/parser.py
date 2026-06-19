@@ -126,6 +126,32 @@ class Parser():
         converter = Converter()
 
         file_path = map_paths["CTD_chemicals_diseases"]
+
+        # Structure identifiers from CTD_chemicals.tsv, keyed by bare MeSH id.
+        # These give a deterministic, drift-free route to a structure (PubChem
+        # CID / InChIKey / CasRN), avoiding the decayed CTD->substance bridge.
+        chem_path = map_paths.get("CTD_chemicals")
+        if chem_path is None:
+            guess = os.path.join(os.path.dirname(os.path.dirname(file_path)),
+                                 "CTD_chemicals", "CTD_chemicals.tsv")
+            chem_path = guess if os.path.isfile(guess) else None
+        chem_ids = dict()
+        if chem_path:
+            with open(chem_path, "r") as cfh:
+                for cl in cfh:
+                    if cl.startswith("#"):
+                        continue
+                    cc = cl.rstrip("\n").split("\t")
+                    if len(cc) < 7:
+                        continue
+                    chem_ids[cc[1].replace("MESH:", "")] = {
+                        "cid": cc[3].strip(),
+                        "inchikey": cc[6].strip(),
+                        "casrn": cc[2].strip()}
+        else:
+            Parser.__log.warning("CTD_chemicals.tsv not found; "
+                                 "file-based resolution disabled")
+
         fh = open(os.path.join(file_path), "r")
         done = set()
         chunk = list()
@@ -145,13 +171,22 @@ class Parser():
                 # Parser.__log.debug("skipping line %s: repeated.", idx)
                 continue
             done.add(src_id)
-            # try to conert CTD id to SMILES
             smiles = None
-            try:
-                smiles = converter.ctd_to_smiles(chemicalid)
-            except Exception as ex:
-                Parser.__log.warning("line %s: %s", idx, str(ex))
-            # if that did't work we can still try with the chamical name
+            # 1. deterministic resolution from CTD_chemicals.tsv structure ids
+            ids = chem_ids.get(chemicalid.replace("MESH:", ""))
+            if ids and (ids["cid"] or ids["inchikey"] or ids["casrn"]):
+                try:
+                    smiles = converter.ctd_file_to_smiles(
+                        ids["cid"], ids["inchikey"], ids["casrn"])
+                except Exception as ex:
+                    Parser.__log.warning("line %s: %s", idx, str(ex))
+            # 2. CTD id -> PubChem substance bridge
+            if not smiles:
+                try:
+                    smiles = converter.ctd_to_smiles(chemicalid)
+                except Exception as ex:
+                    Parser.__log.warning("line %s: %s", idx, str(ex))
+            # 3. chemical name fallback (cactus / pubchem)
             if not smiles:
                 try:
                     smiles = converter.chemical_name_to_smiles(chemicalname)
