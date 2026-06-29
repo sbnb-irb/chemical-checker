@@ -409,7 +409,7 @@ def main(args):
             name="calc_data_" + data_calc,
             python_callable=calculate_data_fn,
             op_args=[data_calc, pp.tmpdir, universe])
-        #pp.add_task(calc_data_task)
+        pp.add_task(calc_data_task)
     # END TASK
     #############################################
 
@@ -453,6 +453,23 @@ def main(args):
                      sign_kwargs=sign_kwargs[cctype],
                      hpc_kwargs=hpc_kwargs[cctype])
         pp.add_task(task)
+    # END TASK
+    #############################################
+
+    #############################################
+    # TASK: Pre-build the sign metadata cache (single writer)
+    # The diagnostics tasks below run as parallel Slurm arrays and each reads
+    # cc_root's `metadata.json.zip` via `sign_metadata()`. That cache is built
+    # lazily on first access; letting the array build it concurrently races
+    # (readers hit a half-written file -> JSONDecodeError). Build it once here
+    # on the head node so every diagnostics job only ever reads a complete file.
+    def prebuild_metadata_fn():
+        cc._get_metadata(overwrite=True)
+
+    prebuild_metadata_task = PythonCallable(
+        name="prebuild_metadata",
+        python_callable=prebuild_metadata_fn)
+    pp.add_task(prebuild_metadata_task)
     # END TASK
     #############################################
 
