@@ -32,9 +32,13 @@ class Converter:
         except ImportError:
             raise ImportError("requires rdkit " + "https://www.rdkit.org/")
         try:
-            from chembl_structure_pipeline.standardizer import standardize_mol
+            from chembl_structure_pipeline.standardizer import (
+                standardize_mol,
+                get_parent_mol,
+            )
 
-            self.standardize = standardize_mol
+            self._standardize_mol = standardize_mol
+            self._get_parent_mol = get_parent_mol
         except ImportError:
             raise ImportError("requires chembl_structure_pipeline")
         try:
@@ -43,6 +47,35 @@ class Converter:
             self.pcp = pcp
         except ImportError:
             raise ImportError("requires pubchempy")
+
+    def standardize(self, mol):
+        """Standardize and desalt a molecule the ChEMBL way.
+
+        Reproduces the logic of the ``standardiser.run`` call used until 2020:
+        normalize functional groups, then strip salts/solvents, remove isotope
+        labels and neutralize charges so that, e.g., a sodium/hydrochloride salt
+        collapses to the same parent structure (and InChIKey) as its free
+        acid/base form. The ChEMBL pipeline keeps these steps separate, so a
+        bare ``standardize_mol`` would leave counterions in place; we follow
+        ChEMBL's documented order of ``standardize_mol`` then ``get_parent_mol``.
+        """
+        mol = self._standardize_mol(mol)
+        # get_parent_mol returns (parent_mol, exclude_flag); neutralize=True by
+        # default also removes the charges the old standardiser stripped.
+        mol, _ = self._get_parent_mol(mol)
+        # Replicate the 2020 standardiser's no_non_salt / multi_component guards.
+        # Count organic fragments (those containing at least one carbon) remaining
+        # after desalting. Zero → only inorganic ions survived; >1 → true mixture,
+        # which has no meaningful single-compound signature in the CC.
+        organic_frags = [
+            f for f in self.Chem.GetMolFrags(mol, asMols=True)
+            if any(a.GetAtomicNum() == 6 for a in f.GetAtoms())
+        ]
+        if len(organic_frags) == 0:
+            raise ConversionError("no organic fragment after desalting", mol)
+        if len(organic_frags) > 1:
+            raise ConversionError("multi-component mixture after desalting", mol)
+        return mol
 
     def smiles_to_scaffold(self, smiles, generic=False):
         """From SMILES to the SMILES of its scaffold."""
