@@ -327,6 +327,14 @@ class sign3(BaseSignature, DataSignature):
             if not os.path.isfile(s1_ext.data_path):
                 s1_ref.predict(s0_ext, destination=s1_ext)
 
+            # sign1 drops all-zero molecules; if none survived for this batch
+            # there is no sign2 to predict (and an empty signature would crash
+            # the downstream predict), so skip this space's update.
+            if len(s1_ext.keys) == 0:
+                sign3.__log.warning(
+                    "No sign1 molecules survived for %s, skipping" % ds)
+                continue
+
             print("--- Predicting sign2")
             # run sign2 predict
             s2_ext = cc_extra.get_signature("sign2", "full", ds)

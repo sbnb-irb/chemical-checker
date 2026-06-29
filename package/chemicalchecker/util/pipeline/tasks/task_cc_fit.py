@@ -178,13 +178,24 @@ class CCFit(BaseTask):
         # Check if signatures are indeed fitted
         dataset_not_done = []
         for ds_code in dataset_codes:
-            sign = cc.get_signature(
-                self.cctype, self.molset, ds_code)
-            if sign.is_fit():
+            sign = cc.get_signature(self.cctype, self.molset, ds_code)
+            if not sign.is_fit():
+                dataset_not_done.append(ds_code)
+                self.__log.warning(
+                    self.cctype + " fit failed for dataset code: " + ds_code)
                 continue
-            dataset_not_done.append(ds_code)
-            self.__log.warning(
-                self.cctype + " fit failed for dataset code: " + ds_code)
+            # For sign types, fit_end() writes fit.ready for both molsets.
+            # If an OOM interrupted fit_end() after the primary but before the
+            # other, invalidate the primary so the dataset is re-run cleanly.
+            if self.cctype.startswith('sign'):
+                other_molset = 'reference' if self.molset == 'full' else 'full'
+                other_sign = cc.get_signature(self.cctype, other_molset, ds_code)
+                if not other_sign.is_fit():
+                    os.remove(sign.model_path + '/fit.ready')
+                    dataset_not_done.append(ds_code)
+                    self.__log.warning(
+                        self.cctype + " %s molset incomplete for dataset: %s"
+                        " — invalidated, will re-run" % (other_molset, ds_code))
 
         if len(dataset_not_done) == 0:
             self.mark_ready()

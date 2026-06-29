@@ -124,6 +124,9 @@ class clus(BaseSignature, DataSignature):
             sign = self.get_sign(
                 'sign' + self.cctype[-1]).get_molset("reference")
 
+        if not sign.is_fit():
+            raise Exception("sign is not fitted.")
+
         if os.path.isfile(sign.data_path):
             self.data = sign.data.astype( 'float32' )
             self.data_type = self.data.dtype

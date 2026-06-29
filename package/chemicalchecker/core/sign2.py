@@ -100,15 +100,40 @@ class sign2(BaseSignature, DataSignature):
         if not os.path.isdir(node2vec_path):
             os.makedirs(node2vec_path)
         graph_file = os.path.join(node2vec_path, 'graph.edgelist')
+        n_neig = len(neig1.unique_keys)
+
+        def graph_node_count(path):
+            # number of distinct source nodes (col 0) in the edgelist
+            with open(path, 'r') as fh:
+                return len(set(line.split(maxsplit=1)[0] for line in fh))
+
+        # (Re)build the edgelist when not reusing or when it is missing. When
+        # reusing an existing edgelist, first verify it covers every molecule:
+        # a truncated graph.edgelist is the tell-tale of an earlier
+        # `to_edgelist` that was interrupted (OOM/timeout), and blindly reusing
+        # it would only fail the completeness check below. So we self-heal by
+        # regenerating it, instead of forcing a manual delete + re-run.
         if not reuse or not os.path.isfile(graph_file):
             n2v.to_edgelist(sign1, neig1, graph_file, **graph_kwargs)
-        # check that all molecules are considered in the graph
-        with open(graph_file, 'r') as fh:
-            lines = fh.readlines()
-        graph_mol = set(l.split()[0] for l in lines)
-        # we can just compare the total nr
-        if not len(graph_mol) == len(neig1.unique_keys):
-            raise Exception("Graph %s is missing nodes." % graph_file)
+        else:
+            n_graph = graph_node_count(graph_file)
+            if n_graph != n_neig:
+                self.__log.warn(
+                    "Reused graph %s is incomplete (%d source nodes vs %d "
+                    "molecules in neig1); regenerating from scratch.",
+                    graph_file, n_graph, n_neig)
+                n2v.to_edgelist(sign1, neig1, graph_file, **graph_kwargs)
+        # check that all molecules are considered in the (freshly built) graph
+        n_graph = graph_node_count(graph_file)
+        if n_graph != n_neig:
+            # Regeneration did not fix it: this is no longer a stale-file issue
+            # but a genuine data/resource problem (e.g. to_edgelist killed by
+            # OOM before finishing). Surface the counts so it is diagnosable.
+            raise Exception(
+                "Graph %s is missing nodes: edgelist has %d source nodes but "
+                "neig1 has %d molecules. Regeneration did not fix it, which "
+                "points to a data/resource problem (e.g. to_edgelist killed by "
+                "OOM)." % (graph_file, n_graph, n_neig))
         # save graph stats
         graph_stat_file = os.path.join(self.stats_path, 'graph_stats.json')
         graph = None

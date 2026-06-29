@@ -112,6 +112,8 @@ class proj(BaseSignature, DataSignature):
         if signature is None:
             signature = self.get_sign(
                 'sign' + self.cctype[-1]).get_molset("reference")
+        if not signature.is_fit():
+            raise Exception("sign is not fitted.")
         self.__log.info("Input shape: %s" % str(signature.shape))
         if preprocess_dims:
             signature = self.pre_fit_transform(signature,
@@ -126,6 +128,7 @@ class proj(BaseSignature, DataSignature):
                              self_full.dataset, proj_type=self.proj_type)
             self.predict(sign_full, self_full.data_path)
             #self.map(self_full.data_path) --> not implemented
+        self.mark_ready()
 
     def predict(self, signature, destination, *args, **kwargs):
         """Predict projection for new data."""
