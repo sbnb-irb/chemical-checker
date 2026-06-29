@@ -121,7 +121,7 @@ class BaseSignature(object):
         # performing validations
         if validations:
             self.update_status("Validation")
-            self.validate(diagnostics)
+            self.validate(diagnostics=diagnostics)
         # Marking as ready
         self.__log.debug("Mark as ready")
         self.mark_ready()
@@ -129,11 +129,11 @@ class BaseSignature(object):
         if end_other_molset:
             other_molset = 'reference'
             if self.molset == 'reference':
-                other_molset == 'full'
+                other_molset = 'full'
             other_self = self.get_molset(other_molset)
             if validations:
                 self.update_status("Validation %s" % other_molset)
-                other_self.validate(diagnostics)
+                other_self.validate(diagnostics=diagnostics)
             other_self.mark_ready()
         self.update_status("FIT END")
 
@@ -206,12 +206,12 @@ class BaseSignature(object):
 
         stats = {"molecules": len(self.keys)}
         results = dict()
-        validation_path = self.signature_path + \
-            '/../../../../../tests/validation_sets/'
+        # validation sets are always read from the configured validation_path
+        validation_path = Config().PATH.validation_path
         if not os.path.exists(validation_path):
             self.__log.warn(
-                "Standard validation path does not exist, "
-                "taking validations from examples")
+                "Configured validation_path '%s' does not exist, "
+                "taking validations from examples" % validation_path)
             validation_path = os.path.join(os.path.dirname(
                 os.path.realpath(__file__)), "examples/validation_sets/")
         validation_files = os.listdir(validation_path)
