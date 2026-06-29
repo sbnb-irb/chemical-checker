@@ -241,6 +241,7 @@ class Downloader():
         mime, compression = mimetypes.guess_type(tmp_file)
         self.__log.debug("MIME %s COMPRESSION %s", mime, compression)
         # compression is None for .zip — check mime and magic bytes too
+        _file_auto_derived = False
         if (not _is_compressed and
                 mime not in patoolib.ArchiveMimetypes.values() and
                 compression not in patoolib.ArchiveMimetypes.values()):
@@ -248,6 +249,7 @@ class Downloader():
             shutil.move(tmp_file, tmp_unzip_dir)
         else:
             try:
+                _file_auto_derived = self.file is None
                 if(self.file is None):
                     self.file = ('.'.join( tmp_file.split('.')[:-1] )).split('/')[-1]
                 patoolib.extract_archive(tmp_file, outdir=tmp_unzip_dir)
@@ -326,10 +328,14 @@ class Downloader():
         destination = self.data_path
         dirs = os.listdir(source)
         if self.file is not None and self.dbname is None and len(dirs) == 1:
-            source = os.path.join(source, os.listdir(source)[0])
+            extracted_name = os.listdir(source)[0]
+            source = os.path.join(source, extracted_name)
             if not os.path.exists(self.data_path):
                 os.makedirs(self.data_path, 0o775)
-            destination = os.path.join(self.data_path, self.file)
+            # When self.file was auto-derived from the archive name, preserve
+            # the actual extracted name (avoids mangled names like "foo.tar")
+            dest_name = extracted_name if _file_auto_derived else self.file
+            destination = os.path.join(self.data_path, dest_name)
 
         if( not os.path.isfile(destination) ):
             shutil.move(source, destination)
