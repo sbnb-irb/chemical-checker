@@ -128,7 +128,8 @@ export SINGULARITY_BIND="/home/sbnb:/aloy/home,/data/sbnb/data:/aloy/data,/data/
         #memory = kwargs.get("memory", 2)
         maxtime = kwargs.get("time", None)
         cpusafe = kwargs.get("cpusafe", True)
-        membycore = int(kwargs.get("mem_by_core", None))
+        membycore_val = kwargs.get("mem_by_core", None)
+        membycore = int(membycore_val) if membycore_val is not None else None
         custom_elements = kwargs.get("custom_chunks", [])
         
         submit_string = 'sbatch --parsable '

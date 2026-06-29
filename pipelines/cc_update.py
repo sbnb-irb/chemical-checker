@@ -134,13 +134,13 @@ def main(args):
         #  is the one taking longer with ~s (h)
         'sign0': {'mem_by_core': 30, 'cpu': 4},
         # sign1 (w/o metric_learning) does not parallelize
-        # B4 is using the most memory with ~12GB
-        # C5 is the one taking longer with ~59000s (16.5h)
-        'sign1': {'mem_by_core': 4, 'cpu': 4},     # 16GB
+        # B4 historically peaked ~12GB, but the larger 2026 sources OOM-killed
+        # the LSI predict step at the old 16GB ceiling, so bump to 32GB.
+        'sign1': {'mem_by_core': 8, 'cpu': 4},     # 32GB
         # sign2 paralelize well and requires memory
         # A2 is using the most memory with ~42GB
         # A1 is the one taking longer with ~158000s (43h)
-        'sign2': {'mem_by_core': 3, 'cpu': 16},    # 48GB
+        'sign2': {'mem_by_core': 4, 'cpu': 16},    # 64GB
         # sign3
         # A1 is using the most memory with ~59GB
         # A1 is the one taking longer with ~186000s (52h)
@@ -151,21 +151,21 @@ def main(args):
 
         # neig1 paralelize very well and require very few memory
         # A2 is the one taking longer with ~9100s (2.5h)
-        'neig1': {'mem_by_core': 1, 'cpu': 16},    # 16GB
+        'neig1': {'mem_by_core': 2, 'cpu': 16},    # 32GB — bumped for 2026 scale
         'neig2': {'mem_by_core': 1, 'cpu': 16},
         'neig3': {'mem_by_core': 1, 'cpu': 16},
         'neig4': {'mem_by_core': 1, 'cpu': 16},
         # clus1 does not paralelize very well and require memory
         # A1 is using the most memory ~28Gb
         # A1 is the one taking longer with ~10700s (3h)
-        'clus1': {'mem_by_core': 8, 'cpu': 4},     # 32GB
+        'clus1': {'mem_by_core': 12, 'cpu': 4},    # 48GB — bumped; 2026 sources OOM at 32GB
         'clus2': {'mem_by_core': 8, 'cpu': 4},
         'clus3': {'mem_by_core': 8, 'cpu': 4},
         'clus4': {'mem_by_core': 8, 'cpu': 4},
         # proj1 paralelize very well and require few memory
         # A1 is using the most memory ~13Gb
         # A1 is the one taking longer with ~4500s (1.5h)
-        'proj1': {'mem_by_core': 2, 'cpu': 16},    # 32GB
+        'proj1': {'mem_by_core': 4, 'cpu': 16},    # 64GBs
         'proj2': {'mem_by_core': 2, 'cpu': 16},
         'proj3': {'mem_by_core': 2, 'cpu': 16},
         'proj4': {'mem_by_core': 2, 'cpu': 16}
