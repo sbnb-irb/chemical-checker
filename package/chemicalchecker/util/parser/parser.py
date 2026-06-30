@@ -586,9 +586,7 @@ class Parser():
             S = set()
             for l in f:
                 l = l.split("\t")
-                # meddra_all_se uses STITCH 4 flat IDs (CID0XXXXXXXX); convert
-                # to STITCH 5 stereo format (CIDsXXXXXXXX) to match chemicals.v5.0.tsv
-                S.update([l[1].replace('CID0', 'CIDs', 1)])
+                S.update([l[1]])
 
         with open(stitch_file, "r") as f:
             stitch = {}

@@ -13,7 +13,7 @@ GSE92742_Broad_LINCS_pert_info,,f,https://www.ncbi.nlm.nih.gov/geo/download/?acc
 GSE70138_Broad_LINCS_pert_info,,f,http://ftp.ncbi.nlm.nih.gov/geo/series/GSE70nnn/GSE70138/suppl/GSE70138_Broad_LINCS_pert_info.txt.gz,,,GSE70138_Broad_LINCS_pert_info.txt,f
 mosaic_all_collections,,f,file:///aloy/web_checker/repo_data/mosaic_all_collections/All_Collections.sdf,,,All_Collections.sdf,f
 pdb_components,,f,https://files.wwpdb.org/pub/pdb/data/monomers/Components-smiles-stereo-oe.smi,,,Components-smiles-stereo-oe.smi,f
-chemicals,,f,file:///aloy/web_checker/repo_data/chemicals/2026/chemicals.v5.0.tsv.gz,,,chemicals.v5.0.tsv,f
+chemicals,There's a v.5.0 version available but it misses some necessary identifiers,f,file:///aloy/web_checker/repo_data/chemicals/2026/chemicals.v4.0.tsv,,,chemicals.v4.0.tsv,f
 meddra_all_se,,f,http://sideeffects.embl.de/media/download/meddra_all_se.tsv.gz,,,meddra_all_se.tsv,f
 smpdb_structures,,f,http://smpdb.ca/downloads/smpdb_structures.zip,,,,f
 cellosaurus,,f,http://ftp.expasy.org/databases/cellosaurus/cellosaurus.obo,,,,f
