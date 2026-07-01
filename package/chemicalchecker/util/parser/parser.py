@@ -40,30 +40,42 @@ class Parser():
         header = fh.readline()
         header_rows = 1
         header = header.rstrip("\n").split("\t")
-        # get indexes
-        bdlig_idx = header.index("Ligand InChI Key")
+        # get indexes. Use BindingDB MonomerID as the stable per-ligand id;
+        # the old "Ligand InChI Key" src_id is now often empty, which made the
+        # dedup collapse all empty-key rows into one.
+        monomer_idx = header.index("BindingDB MonomerID")
         smiles_idx = header.index("Ligand SMILES")
         done = set()
         chunk = list()
         for idx, line in enumerate(fh):
             idx = idx + header_rows
             line = line.rstrip("\n").split("\t")
-            src_id = line[bdlig_idx]
+            src_id = line[monomer_idx]
             smiles = line[smiles_idx]
-            # skip repeated entries
-            if src_id in done:
-                # Parser.__log.debug("skipping line %s: repeated.", idx)
-                continue
-            done.add(src_id)
             if not smiles:
                 # Parser.__log.debug("skipping line %s: missing smiles.", idx)
                 continue
+            # skip repeated ligands (listed once per target/assay); dedup on
+            # MonomerID, falling back to SMILES when it is missing.
+            dedup_key = src_id if src_id else smiles
+            if dedup_key in done:
+                # Parser.__log.debug("skipping line %s: repeated.", idx)
+                continue
+            done.add(dedup_key)
             # the following is always the same
             try:
                 inchikey, inchi = converter.smiles_to_inchi(smiles)
-            except Exception as ex:
-                Parser.__log.warning("line %s: %s", idx, str(ex))
-                inchikey, inchi = None, None
+            except Exception:
+                # BindingDB now appends ChemAxon CXSMILES (e.g. |TLB:..|,
+                # |THB:..|) that RDKit cannot parse. Retry on the core SMILES
+                # (token before the first space). Parseable extensions like |r|
+                # already succeeded above, so their stereochemistry is kept.
+                smiles = smiles.split()[0]
+                try:
+                    inchikey, inchi = converter.smiles_to_inchi(smiles)
+                except Exception as ex:
+                    Parser.__log.warning("line %s: %s", idx, str(ex))
+                    inchikey, inchi = None, None
             id_text = molrepo_name + "_" + src_id
             if inchikey is not None:
                 id_text += ("_" + inchikey)

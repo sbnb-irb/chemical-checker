@@ -131,7 +131,9 @@ def parse_bindingdb(ACTS=None, bindingdb_file=None):
 
     header = f.readline()
     header = header.rstrip("\n").split("\t")
-    bdlig_idx = header.index("Ligand InChI Key")
+    # Match the molrepo src_id (BindingDB MonomerID). The "Ligand InChI Key"
+    # column is now frequently empty in BindingDB releases.
+    bdlig_idx = header.index("BindingDB MonomerID")
     smiles_idx = header.index("Ligand SMILES")
     ki_idx = header.index("Ki (nM)")
     ic50_idx = header.index("IC50 (nM)")
