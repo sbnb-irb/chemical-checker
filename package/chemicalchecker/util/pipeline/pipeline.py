@@ -57,11 +57,11 @@ class Pipeline():
 
     def _check_task(self, task):
         """Decide if task can be included."""
-        if any([task.name.startswith(st) for st in self.exclude_tasks]):
+        if any([task.name == st for st in self.exclude_tasks]):
             self.__log.info("Task EXCLUDED: '%s'", task.name)
             return False
         if len(self.only_tasks) > 0:
-            if any([task.name.startswith(st) for st in self.only_tasks]):
+            if any([task.name == st for st in self.only_tasks]):
                 self.__log.info("Task SELECTED: '%s'", task.name)
                 return True
             else:
