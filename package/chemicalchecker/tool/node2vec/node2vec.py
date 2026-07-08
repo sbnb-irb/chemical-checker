@@ -408,6 +408,11 @@ class Node2Vec():
         ow = kwargs.get("ow", False)
         dr = kwargs.get("dr", False)
         w = kwargs.get("w", True)
+        # SNAP node2vec parallelises SGD with Hogwild (lock-free, unsynchronised
+        # weight updates). Beyond a few threads the race conditions corrupt the
+        # embedding: vector norms inflate and the semantic (e.g. MoA/ATC)
+        # structure is washed out. Embedding quality matters far more than the
+        # few minutes of wall-time saved, so default to a single thread.
         cpu = kwargs.get("cpu", 1)
 
         # prepare arguments
@@ -431,8 +436,15 @@ class Node2Vec():
         if ow:
             args.append("-ow")
 
-        # this enables using as many CPU as required
-        os.environ['OMP_NUM_THREADS'] = str(cpu)
+        # Pin the thread count on the child process explicitly. Mutating
+        # os.environ alone is not enough: a SLURM job script may export
+        # OMP_NUM_THREADS (e.g. 16, matching --ntasks) into the environment the
+        # container inherits, and we must guarantee our value wins for the
+        # node2vec process regardless of that ambient setting. Passing a scoped
+        # env to Popen makes the choice authoritative without polluting the
+        # parent process.
+        child_env = dict(os.environ)
+        child_env['OMP_NUM_THREADS'] = str(cpu)
 
         # log command
         self.__log.info(' '.join(args))
@@ -441,7 +453,8 @@ class Node2Vec():
         # run process
         process = subprocess.Popen([self.executable] + args,
                                    stdout=subprocess.PIPE,
-                                   stderr=subprocess.STDOUT)
+                                   stderr=subprocess.STDOUT,
+                                   env=child_env)
 
         # stream output as it gets generated
         while True:

@@ -233,7 +233,11 @@ def main(args):
         fit_kwargs['sign2'][ds] = {
             'validations': True,
             'diagnostics': False,
-            'node2vec_kwargs': {'cpu': 4},
+            # Keep node2vec single-threaded: its Hogwild SGD degrades the
+            # embedding (norm inflation, loss of MoA/ATC structure) when run
+            # with many threads on the multi-core sign2 nodes. AdaNet still
+            # uses the full CPU allocation below.
+            'node2vec_kwargs': {'cpu': 1},
             'adanet_kwargs': {'cpu': hpc_kwargs['sign2']['cpu']}
         }
         fit_kwargs['sign3'][ds] = {
