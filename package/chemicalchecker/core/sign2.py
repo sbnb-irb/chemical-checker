@@ -157,13 +157,6 @@ class sign2(BaseSignature, DataSignature):
                 linkpred.performance.toJSON(linkpred_file)
             except Exception as ex:
                 self.__log.error('Problem with LinkPrediction: %s' % str(ex))
-        # copy reduced-full mappingsfrom sign1
-        if "mappings" not in self.info_h5 and "mappings" in sign1.info_h5:
-            self.copy_from(sign1, "mappings")
-        else:
-            self.__log.warn("Cannot copy 'mappings' from sign1.")
-       
-        
         sign2_plot = Plot(self.dataset, self.stats_path)
         sign2_plot.sign_feature_distribution_plot(self)
 
@@ -209,9 +202,21 @@ class sign2(BaseSignature, DataSignature):
         # so we overwrite the original embeddings using the predictor
         sign1_ref = cc_tmp.get_signature('sign1', 'reference', self.dataset)
         sign2_ref = cc_tmp.get_signature('sign2', 'reference', self.dataset)
+
+        def copy_mappings():
+            # copy reduced-full mappings from sign1
+            if "mappings" in sign1.info_h5:
+                self.copy_from(sign1, "mappings")
+            else:
+                self.__log.warn("Cannot copy 'mappings' from sign1.")
+
+        # save_full expands reference to full via the mappings...
+        copy_mappings()
         if oos_predictor:
             self.predict(sign1_full, sign2_full.data_path)
             self.predict(sign1_ref, sign2_ref.data_path)
+            # ...and predict overwrites data_path, so restore them
+            copy_mappings()
         else:
             self.save_full(sign2_full.data_path)
         # finalize signature
