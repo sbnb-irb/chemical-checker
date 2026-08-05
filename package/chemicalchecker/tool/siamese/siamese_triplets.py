@@ -255,21 +255,31 @@ class SiameseTriplets(object):
             "augment_kwargs", str(self.augment_kwargs)))
         self.__log.info("**** %s Parameters: ***" % self.__class__.__name__)
 
+        # `sharedx`/`sharedx_trim` are the preloaded sign2 universe matrix, i.e.
+        # data and not parameters. Pickling them made params.pkl as large as the
+        # training set (~41 GB per model in the 2024 update). They are omitted:
+        # whoever reloads these parameters and actually needs the matrix re-reads
+        # it from `traintest_file`, which is itself stored in here.
+        params_to_save = {k: v for k, v in kwargs.items()
+                          if k not in ('sharedx', 'sharedx_trim')}
+
         if not os.path.isfile(param_file) and save_params:
-            self.__log.debug("Saving temporary parameters to %s" % param_file)
+            self.__log.debug(
+                "Saving temporary parameters to %s.tmp" % param_file)
             with open(param_file+'.tmp', "wb") as f:
-                pickle.dump(kwargs, f, protocol=pickle.HIGHEST_PROTOCOL)
+                pickle.dump(params_to_save, f, protocol=pickle.HIGHEST_PROTOCOL)
 
         if self.learning_rate == 'auto':
             self.__log.debug("Searching for optimal learning rates.")
             lr = self.find_lr(kwargs, generator=self.generator)
             self.learning_rate = lr
             kwargs['learning_rate'] = self.learning_rate
+            params_to_save['learning_rate'] = self.learning_rate
 
         if not os.path.isfile(param_file) and save_params:
             self.__log.debug("Saving parameters to %s" % param_file)
             with open(param_file, "wb") as f:
-                pickle.dump(kwargs, f, protocol=pickle.HIGHEST_PROTOCOL)
+                pickle.dump(params_to_save, f, protocol=pickle.HIGHEST_PROTOCOL)
 
     def build_model(self, input_shape, load=False, cp=None):
         """Compile Keras model
