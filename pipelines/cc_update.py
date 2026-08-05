@@ -72,8 +72,14 @@ def pipeline_parser():
         help='Root dir of the CC instance to use as reference '
         '(i.e. triplet sampling in sign0).')
     parser.add_argument(
-        '-m', '--mode_complete_universe', type=str, default="full", required=False,
-        help='Choose between the full mode (all chemical spaces) or fast (skipping A2.001 space)')
+        '-m', '--mode_complete_universe', type=str, default="off",
+        required=False, choices=['off', 'full', 'fast'],
+        help='Fill the A-level (chemistry) gaps of the sign2 universe: '
+        '`off` skips the task entirely (default), `full` completes all A '
+        'spaces, `fast` skips A2.001. NB: sign3 is configured with '
+        '`complete_universe: False` and reads the *uncompleted* universe, so '
+        '`full`/`fast` currently produce a ~40GB `.complete.h5` pair that '
+        'nothing downstream opens.')
     parser.add_argument(
         '-t', '--only_tasks', type=str, nargs="+", default=[],
         required=False,
@@ -518,7 +524,16 @@ def main(args):
                          python_callable = sign3.complete_sign2_universe_global_pipeline,
                          op_args=[sign2_universe, sign2_coverage],
                          op_kwargs={'tmp_path': pp.tmpdir, 'root_cc': args.cc_root, 'ref_cc': refcc, 'calc_idx_chemical_spaces': calc_idx_chemical_spaces, 'sign2_src_dataset_list': sign2_src_dataset_list })
-    pp.add_task(task)
+    # This completion has never run in any shipped CC version (paper, 2020_02,
+    # 2021_07, 2024_02): its output is written to `<universe>.complete.h5`, but
+    # sign3 above is configured with `complete_universe: False` and is handed
+    # the *original* universe paths, so nothing ever opens the completed files.
+    # Skipped by default; pass `-m full`/`-m fast` to run it anyway.
+    if args.mode_complete_universe == 'off':
+        main._log.info("Task SKIPPED: 'complete_sign2_universe_global' "
+                       "(mode_complete_universe='off')")
+    else:
+        pp.add_task(task)
     # END TASK
     #############################################
 
