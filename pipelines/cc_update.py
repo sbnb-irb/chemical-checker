@@ -47,8 +47,6 @@ from chemicalchecker.util.pipeline import CCFit, CCPredict
 from update_resources.create_database import create_db_dataset
 from chemicalchecker.core.diagnostics import Diagnosis
 
-from chemicalchecker.util.splitter import AdriaTripletSampler
-
 # this is needed to export signaturizers at the end
 from signaturizer.exporter import export_batch
 
@@ -275,11 +273,7 @@ def main(args):
     # DATASET SPECIFIC FIT/INIT PARAMETERS
     # we want to keep exactly 2048 features (Morgan fingerprint) for A1
     fit_kwargs['sign0']['A1.001'] = {'sanitize': False}
-    
-    # Adjusting triplet samplers
-    for ds in ['D4.001', 'E1.001', 'E2.001', 'E3.001', 'E4.001', 'E5.001']: 
-        fit_kwargs['sign3'][ds]['triplets_sampler'] = [ AdriaTripletSampler, None, None ]
-   
+
 
     # TASK: Download all datasources
     def download_fn(tmpdir):
