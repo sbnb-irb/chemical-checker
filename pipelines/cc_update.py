@@ -146,9 +146,10 @@ def main(args):
         # A1 is the one taking longer with ~158000s (43h)
         'sign2': {'mem_by_core': 4, 'cpu': 16},    # 64GB
         # sign3
-        # A1 is using the most memory with ~59GB
+        # A1 is using the most memory with ~59GB  <- 1.0M universe (2021_07)
         # A1 is the one taking longer with ~186000s (52h)
-        'sign3': {'mem_by_core': 25, 'cpu': 8},    # 200GB
+        # 2026_04 (1.54M universe). Bumped to 224GB.
+        'sign3': {'mem_by_core': 28, 'cpu': 8},    # 224GB
         # sign4
         'sign4': {'mem_by_core': 10, 'cpu': 20},   # 200GB
         #'sign4': {'memory': 100, 'cpu': 8},
