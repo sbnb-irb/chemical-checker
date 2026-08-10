@@ -33,7 +33,6 @@ import json
 import shutil
 import logging
 import argparse
-import numpy as np
 
 from chemicalchecker import ChemicalChecker
 from chemicalchecker.core import DataSignature
@@ -57,10 +56,6 @@ def pipeline_parser():
         'pipeline_dir', type=str,
         help='Directory where the pipeline will run '
         '(e.g. `/aloy/scratch/mbertoni/pipelines/miniCC_web`)')
-    parser.add_argument(
-        'molecule_path', type=str,
-        help='Directory where the molecule images will be stored '
-        '(e.g. `/aloy/web_checker/molecules`)')
     parser.add_argument(
         'old_web_db', type=str,
         help='Previous web database '
@@ -222,9 +217,8 @@ def main(args):
 
     # TASK: Create all plots
     plots_task = Plots(name='plots',
-                       DB=args.new_web_db, CC_ROOT=args.cc_root,
-                       MOLECULES_PATH=args.molecule_path)
-    #pp.add_task(plots_task)
+                       DB=args.new_web_db, CC_ROOT=args.cc_root)
+    pp.add_task(plots_task)
 
     # TASK: Generate molecular info
     minfo_task = MolecularInfo(name='molinfo',
@@ -271,17 +265,6 @@ def main(args):
         dst_dir = os.path.join(web_repo_path, 'app', 'images', 'statistics')
         if os.path.isdir(dst_dir):
             os.unlink(dst_dir)
-        os.symlink(src_dir, dst_dir)
-        
-        # link molecule dir
-        src_dir = args.molecule_path
-        if not os.path.isdir(src_dir):
-            raise Exception(
-                "%s not found! Did cc_web.py finish correctly?" %
-                src_dir)
-        dst_dir = os.path.join(web_repo_path, 'app', 'images', 'molecules')
-        if os.path.isdir(dst_dir):
-           os.unlink(dst_dir)
         os.symlink(src_dir, dst_dir)
         
         # copy bioactive_mol_set.json (aka cc universe)
@@ -341,17 +324,18 @@ def main(args):
     
     pp.add_task(export_task)
     
-    def export_cc_sign0123(cc_root, ftp_path='/aloy/web_checker/ftp_data'): 
+    def export_cc_sign0123(cc_root, ftp_path='/aloy/web_checker/ftp_data'):
+        version = ChemicalChecker(cc_root).name
         a = ['A','B','C','D','E']
         b = [1,2,3,4,5]
         c = [0, 1, 2, 3]
         for s in c:
-            dest = f'{ftp_path}/2024_02/signature{s}'
+            dest = f'{ftp_path}/{version}/signature{s}'
             if( not os.path.isdir(dest) ):
-                os.mkdir(dest)
-            
-        scr = f'{args.cc_root}/full/_sa_/_space_/_space_.001/_sign_/_sign_.h5'
-        dest = f'{ftp_path}/2024_02/signature_s_/_space___sign_.h5'
+                os.makedirs(dest)
+
+        scr = f'{cc_root}/full/_sa_/_space_/_space_.001/_sign_/_sign_.h5'
+        dest = f'{ftp_path}/{version}/signature_s_/_space___sign_.h5'
         for i in a:
             for j in b:
                 for k in c:
@@ -391,15 +375,14 @@ def main(args):
         #os.system( f"rm -rf {ftp_data}/sign_links" )
         
 
-    link_cc_current_task = PythonCallable(name="linkNew_cc_current",
+    linkNew_cc_current_task = PythonCallable(name="linkNew_cc_current",
                                  python_callable=linkNew_cc_current,
                                  op_args= [ args.cc_root, args.new_web_db.replace('cc_web_', ''), '/aloy/web_checker/ftp_data' ] )
     pp.add_task( linkNew_cc_current_task )
 
     # TASK: Create json of similar molecules for explore page
     similars_task = Similars(name='similars',
-                             DB=args.new_web_db, CC_ROOT=args.cc_root,
-                             MOLECULES_PATH=args.molecule_path)
+                             DB=args.new_web_db, CC_ROOT=args.cc_root)
     pp.add_task(similars_task)
 
     # RUN the pipeline!

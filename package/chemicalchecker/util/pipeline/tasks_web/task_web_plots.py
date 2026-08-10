@@ -1,13 +1,10 @@
 import os
-import h5py
-import shutil
-import tempfile
 from shutil import copyfile
 
 from chemicalchecker.database import Dataset
 from chemicalchecker.core import ChemicalChecker
 from chemicalchecker.util.pipeline import BaseTask
-from chemicalchecker.util import logged, HPC
+from chemicalchecker.util import logged
 
 
 @logged
@@ -25,15 +22,16 @@ class Plots(BaseTask):
         self.CC_ROOT = params.get('CC_ROOT', None)
         if self.CC_ROOT is None:
             raise Exception('CC_ROOT parameter is not set')
-        self.MOLECULES_PATH = params.get('MOLECULES_PATH', None)
-        if self.MOLECULES_PATH is None:
-            raise Exception('MOLECULES_PATH parameter is not set')
 
     def run(self):
-        """Run the coordinates step."""
+        """Copy the per-space projection plots into `plots_web`.
+
+        NB: this task used to also render a 2D SVG per molecule into a
+        `MOLECULES_PATH` tree. That was superseded by the `molinfo` task,
+        which stores the SVG in the `molecular_info.molsvg` column, so only
+        the projection plots are handled here.
+        """
         all_datasets = Dataset.get()
-        script_path = os.path.join(os.path.dirname(
-            os.path.realpath(__file__)), "scripts/make_plots.py")
         cc = ChemicalChecker(self.CC_ROOT)
 
         self.__log.info("Copying projections plots")
@@ -51,48 +49,9 @@ class Plots(BaseTask):
                 raise Exception("Projection plot for dataset " +
                                 ds.dataset_code + " is not available.")
             copyfile(src_plot_file, dest_plot_file)
-        
-        """
-        self.__log.info("Finding missing molecule plots")
-        universe_file = os.path.join(self.cachedir, "universe.h5")
-        with h5py.File(universe_file, 'r') as h5:
-            keys = h5["keys"][:]
-        datasize = keys.shape[0]
-        keys = [ x.decode('utf-8') for x in keys ]
-        keys.sort()
 
-        job_path = tempfile.mkdtemp(
-            prefix='jobs_molplot_', dir=self.tmpdir)
+        self.mark_ready()
 
-        params = {}
-        params["num_jobs"] = datasize / 1000
-        params["jobdir"] = job_path
-        params["job_name"] = "CC_MOLPLOT"
-        params["elements"] = keys
-        params["wait"] = True
-        # job command
-        cc_config_path = self.config.config_path
-        cc_package = os.path.join(self.config.PATH.CC_REPO, 'package')
-        singularity_image = self.config.PATH.SINGULARITY_IMAGE
-        command = "SINGULARITYENV_PYTHONPATH={} SINGULARITYENV_CC_CONFIG={} singularity exec {} python {} <TASK_ID> <FILE> {}"
-        command = command.format(
-            cc_package, cc_config_path, singularity_image, script_path, self.MOLECULES_PATH)
-        # submit jobs
-        cluster = HPC.from_config(self.config)
-        cluster.submitMultiJob(command, **params)
-
-        if cluster.status() == HPC.READY:
-            self.mark_ready()
-            if not self.keep_jobs:
-                shutil.rmtree(job_path, ignore_errors=True)
-        else:
-            if not self.custom_ready():
-                raise Exception(
-                    "Some molecules did not get the plots right.")
-            else:
-                self.__log.error("Some molecules did not get the plots right.")
-        """
-        
     def execute(self, context):
         """Run the molprops step."""
         self.tmpdir = context['params']['tmpdir']

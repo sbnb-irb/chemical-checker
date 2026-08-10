@@ -49,12 +49,8 @@ class Similars(BaseTask):
         self.CC_ROOT = params.get('CC_ROOT', None)
         if self.CC_ROOT is None:
             raise Exception('CC_ROOT parameter is not set')
-        self.cc = ChemicalChecker( self.CC_ROOT )    
-            
-        self.MOLECULES_PATH = params.get('MOLECULES_PATH', None)
-        if self.MOLECULES_PATH is None:
-            raise Exception('MOLECULES_PATH parameter is not set')
-            
+        self.cc = ChemicalChecker( self.CC_ROOT )
+
         c = Config()
         self.hpc_env = c.HPC.system
 
@@ -146,8 +142,7 @@ class Similars(BaseTask):
             self.__log.debug("Table similars already exists")
         
         version = self.DB.replace("cc_web_", '')
-        mol_path = self.MOLECULES_PATH
-        
+
         # query to see if there is some data filled in new db
         SELECT_CHECK = f"SELECT DISTINCT (inchikey) FROM similars where version = '{ version }';" 
         rows = psql.qstring( SELECT_CHECK, self.DB)
@@ -230,17 +225,6 @@ class Similars(BaseTask):
             jobs = cluster.submitMultiJob(command, **params)
         
         
-        """
-        self.__log.info("Checking results")
-        missing_keys = list()
-        for i in tqdm(range(len(universe_keys))):
-            inchikey = universe_keys[i]
-            PATH = mol_path + "/%s/%s/%s/%s" % (
-                inchikey[:2], inchikey[2:4], inchikey, 'explore_' + version + '.json')
-            if not os.path.exists(PATH):
-                missing_keys.append(inchikey)
-        """
-
         self.__log.info("Checking results")
         #qty_sql_files = len( os.listdir(sql_path) )
 
