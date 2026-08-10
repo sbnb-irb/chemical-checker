@@ -166,8 +166,12 @@ class Similars(BaseTask):
             # get all bioactive compounds from libraries (with pubchem names)
             lib_bio_file = os.path.join(self.tmpdir, "lib_bio.json")
 
-            # save chunks of inchikey pubmed synonyms
-            ik_names_file = os.path.join(self.tmpdir, "inchi_names.json")
+            # inchikey -> pubchem synonym map, written by the `pubchem` task
+            ik_names_file = os.path.join(self.tmpdir, "inchies_names.json")
+            if not os.path.isfile(ik_names_file):
+                raise Exception(
+                    "%s not found! It is produced by the `pubchem` task, "
+                    "which must run before `similars`." % ik_names_file)
 
             self.__log.info("Launching jobs to create json files for " +
                             str(len(universe_keys)) + " molecules")
