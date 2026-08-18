@@ -79,8 +79,8 @@ class Libraries(BaseTask):
                 if lib[0] not in ref_bioactive:
                     ref_bioactive[lib[0]] = set()
                 ref_bioactive[lib[0]].add(lib[1])
-            for lib in lib_bio:
-                ref_bioactive[lib[0]] = list(ref_bioactive[lib[0]])
+            for lib in ref_bioactive:
+                ref_bioactive[lib] = list(ref_bioactive[lib])
             with open(lib_bio_file, 'w') as outfile:
                 json.dump(ref_bioactive, outfile)
     
