@@ -110,7 +110,7 @@ class MolecularInfo(BaseTask):
             prefix='molinfo_data_', dir=self.tmpdir)
 
         params = {}
-        params["num_jobs"] = datasize / 1000
+        params["num_jobs"] = datasize // 1000
         params["jobdir"] = job_path
         params["job_name"] = "CC_MOLINFO"
         params["elements"] = keys
@@ -148,12 +148,40 @@ class MolecularInfo(BaseTask):
                     svgs += [ r[9] ]
                     done_iks.add(r[0])
 
+        # the universe comes from sign3 A1.001, which can contain molecules
+        # that never made it into the `molecule` table. Those have no InChI,
+        # so the workers cannot score or draw them and they are legitimately
+        # absent from the results.
+        inchikey_inchi = Molecule.get_inchikey_inchi_mapping(keys)
+        drawable = [k for k in keys if inchikey_inchi.get(k) is not None]
+        skipped = datasize - len(drawable)
+        if skipped:
+            self.__log.warning(
+                "Skipped %d of %d universe molecules (%.4f%%): no InChI in the "
+                "`molecule` table, so they cannot be scored or drawn" % (
+                    skipped, datasize, 100. * skipped / datasize))
+            self.__log.info(
+                "Generating molecular info for the remaining %d molecules "
+                "(%.4f%% of the universe)" % (
+                    len(drawable), 100. * len(drawable) / datasize))
+        else:
+            self.__log.info(
+                "All %d universe molecules have an InChI" % datasize)
+
         V = np.array(V).astype( 'float' )
         V = np.nan_to_num(V)
 
-        if V.shape[0] != datasize:
-            raise Exception(
-                "Generated molecular info does not include all universe molecules (%d/%d)" % (V.shape[0], datasize))
+        # a shortfall here means some worker skipped a molecule it should have
+        # handled (the reason is printed as "SKIP <inchikey>: ..." in that
+        # job's slurm log). Report it and carry on: the completeness gate at
+        # the end withholds mark_ready, so an hour of compute is not discarded
+        # and the tmp dirs are kept for diagnosis.
+        if V.shape[0] != len(drawable):
+            lost = sorted(set(drawable) - set(iks))
+            self.__log.error(
+                "Generated molecular info is missing %d drawable molecules "
+                "(%d/%d), e.g. %s" % (len(drawable) - V.shape[0], V.shape[0],
+                                      len(drawable), ", ".join(lost[:10])))
 
         # Singularity
         V[:, 1] = rankdata(-V[:, 1]) / V.shape[0]
@@ -162,48 +190,53 @@ class MolecularInfo(BaseTask):
         V[:, 2] = rankdata(V[:, 2]) / V.shape[0]
             
         # insert scores/molinfos
-        index = range(0, datasize)
-        for i in range(0, datasize, 1000):
+        nmols = len(iks)
+        index = range(0, nmols)
+        for i in range(0, nmols, 1000):
             sl = slice(i, i + 1000)
-            
+
             S = ["('%s', '%s', '%s', '%s', %.3f, %.3f, %.3f, %.3f, %.3f, %.3f)" %
                  (iks[i], formula[i], smiles[i], svgs[i], V[i, 0], V[i, 1], V[i, 2], V[i, 3], V[i, 4], V[i, 5]) for i in index[sl]]
             try:
                 psql.query(INSERT_MOLINFO % ",".join(S), self.DB)
             except Exception as e:
-                print(e)
+                self.__log.error("Error inserting molecular_info rows %d-%d: %s" % (
+                    i, i + 1000, str(e)))
 
-        # insert structures
-        inchikey_inchi = Molecule.get_inchikey_inchi_mapping(keys)
+        # insert structures (skipping the keys with no InChI, which would
+        # otherwise be stored as the literal string 'None')
         inchikey_inchi_str = ["('%s', '%s')" % (a, b)
-                              for a, b in list(inchikey_inchi.items())]
-        for i in range(0, datasize, 1000):
+                              for a, b in list(inchikey_inchi.items())
+                              if b is not None]
+        for i in range(0, len(inchikey_inchi_str), 1000):
             sl = slice(i, i + 1000)
             S = inchikey_inchi_str[sl]
             try:
                 psql.query(INSERT_STRUCTURE % ",".join(S), self.DB)
             except Exception as e:
-                print(e)
+                self.__log.error("Error inserting structure rows %d-%d: %s" % (
+                    i, i + 1000, str(e)))
 
         try:
             self.__log.info("Checking tables")
-            count = psql.qstring(COUNT_MOLINFO, self.DB)
-            if int(count[0][0]) != datasize:
+            complete = True
+            count = int(psql.qstring(COUNT_MOLINFO, self.DB)[0][0])
+            if count != len(drawable):
+                complete = False
+                msg = "Not all drawable universe keys were added to molecular_info (%d/%d)" % (
+                    count, len(drawable))
                 if not self.custom_ready():
-                    raise Exception(
-                        "Not all universe keys were added to molecular_info (%d/%d)" % (int(count[0][0]), datasize))
-                else:
-                    self.__log.error(
-                        "Not all universe keys were added to molecular_info (%d/%d)" % (int(count[0][0]), datasize))
-            count = psql.qstring(COUNT_STRUCTURE, self.DB)
-            if int(count[0][0]) != datasize:
+                    raise Exception(msg)
+                self.__log.error(msg)
+            count = int(psql.qstring(COUNT_STRUCTURE, self.DB)[0][0])
+            if count != len(inchikey_inchi_str):
+                complete = False
+                msg = "Not all universe keys were added to structure (%d/%d)" % (
+                    count, len(inchikey_inchi_str))
                 if not self.custom_ready():
-                    raise Exception(
-                        "Not all universe keys were added to structure (%d/%d)" % (int(count[0][0]), datasize))
-                else:
-                    self.__log.error(
-                        "Not all universe keys were added to structure (%d/%d)" % (int(count[0][0]), datasize))
-            else:
+                    raise Exception(msg)
+                self.__log.error(msg)
+            if complete:
                 self.__log.info("Indexing table")
                 psql.query(CREATE_INDEX_MOLINFO, self.DB)
                 psql.query(CREATE_INDEX_STRUCTURE, self.DB)

@@ -43,7 +43,7 @@ def draw(inchikey, inchi, mol_path):
     
     mol_svg = os.path.join(mol_path, '2d.svg')
     if not os.path.isfile(mol_svg):
-        raise Exception("Could not draw %s in path %s" % (key, mol_svg))
+        raise Exception("Could not draw %s in path %s" % (inchikey, mol_svg))
     else:
         svg = open( mol_svg, 'r' ).read().replace('\n', ' ')
         os.remove(mol_svg)
@@ -171,15 +171,28 @@ qed_idx = np.argwhere(feat_names == '17').ravel()
 with open(outfile, "w") as f:
     for i, ik in enumerate(iks):
         print(i, ik)
-        s = get_scores(i, cc, map_coords_obs[ik], vals_obs, vals_pred,
-                       dataset_pairs, cut_idx, coord_idxs)
-        
         inchi = mappings_inchi[ik]
+        # molecules absent from the `molecule` table have no InChI, so there
+        # is nothing to parse or draw. str(None) would reach RDKit as the
+        # literal 'None' and blow up further down.
+        if inchi is None:
+            print("SKIP %s: no InChI in the molecule table" % ik)
+            continue
+
         mol_path = os.path.join( temp_dir, ik )
         if( not os.path.isdir( mol_path ) ):
             os.mkdir( mol_path )
-        smiles, svg = draw( str(ik), str(inchi), mol_path)
-        
+        # a molecule we cannot score or draw must cost us that molecule only,
+        # not the remainder of the chunk
+        try:
+            s = get_scores(i, cc, map_coords_obs[ik], vals_obs, vals_pred,
+                           dataset_pairs, cut_idx, coord_idxs)
+            smiles, svg = draw( str(ik), str(inchi), mol_path)
+        except Exception as ex:
+            print("SKIP %s: %s" % (ik, str(ex)))
+            shutil.rmtree( mol_path, ignore_errors=True)
+            continue
+
         start_pos = inchi.find('/') + 1
         end_pos = inchi.find('/', start_pos)
         formula = inchi[start_pos:end_pos]
