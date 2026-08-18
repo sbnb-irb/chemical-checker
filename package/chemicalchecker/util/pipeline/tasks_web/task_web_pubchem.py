@@ -5,6 +5,7 @@ previous version of the DB and we only query missing compounds.
 """
 import os
 import h5py
+import json
 import shutil
 import tempfile
 
@@ -44,6 +45,8 @@ INSERT = "INSERT INTO pubchem (cid, inchikey_pubchem, inchikey, name, synonyms, 
 SELECT = "SELECT cid, inchikey_pubchem, inchikey, name, synonyms, pubchem_name, iupac_name, direct_parent FROM pubchem WHERE inchikey IN (%s)"
 
 SELECT_CHECK = "SELECT DISTINCT (inchikey) FROM pubchem WHERE inchikey IN (%s)"
+
+SELECT_CHECK_ALL = "SELECT DISTINCT (inchikey) FROM pubchem"
 
 COUNT = "SELECT COUNT(DISTINCT inchikey) FROM pubchem"
 
@@ -88,7 +91,7 @@ class Pubchem(BaseTask):
             if( flag and line.startswith('\\.') ):
                 flag = False
                 g.write( '\\.\n'.encode('UTF-8') )
-                
+
             if(flag):
                 if( header != ''):
                     g.write( header.encode('UTF-8') )
@@ -209,10 +212,9 @@ class Pubchem(BaseTask):
         self.import_key_data_from_old_db( universe )
         
         # query to see if there is some data filled in new db
-        SELECT_CHECK = "SELECT DISTINCT (inchikey) FROM pubchem ;" 
-        rows = psql.qstring( SELECT_CHECK, self.DB)
+        rows = psql.qstring( SELECT_CHECK_ALL, self.DB)
         done = set( [el[0] for el in rows] )
-        keys = list( set(temp) - done )
+        keys = list( set(universe) - done )
         data_size = len(keys)
         
         self.__log.info("Generating pubchem data for %s molecules",
@@ -229,10 +231,12 @@ class Pubchem(BaseTask):
         job_path = tempfile.mkdtemp(prefix='jobs_pubchem_', dir=self.tmpdir)
         if( data_size > 0 ):
             params = {}
-            params["num_jobs"] = 4
+            # The work is network-bound, so extra workers buy nothing anyway.
+            params["num_jobs"] = 1
             params["jobdir"] = job_path
             params["job_name"] = "CC_PUBCH"
             params["elements"] = chunks
+            params["time"] = '30-00:00:00'
             params["wait"] = True
 
             # job command
@@ -251,16 +255,18 @@ class Pubchem(BaseTask):
 
         try:
             self.__log.info("Checking table")
-            count = psql.qstring(COUNT, self.DB)
-            if int(count[0][0]) != all_data_size:
+            rows = psql.qstring(SELECT_CHECK_ALL, self.DB)
+            covered = set(el[0] for el in rows)
+            pending = set(universe) - covered
+            if len(pending) > 0:
                 if not self.custom_ready():
                     raise Exception(
                         "Not all universe keys were added to Pubchem (%d/%d)" %
-                        (int(count[0][0]), all_data_size))
+                        (all_data_size - len(pending), all_data_size))
                 else:
                     self.__log.error(
                         "Not all universe keys were added to Pubchem (%d/%d)" %
-                        (int(count[0][0]), all_data_size))
+                        (all_data_size - len(pending), all_data_size))
             else:
                 self.__log.info("Indexing table")
                 try:
